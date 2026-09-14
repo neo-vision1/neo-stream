@@ -1,0 +1,24 @@
+{
+  "server": "wss://api.exemplo.com/agent",
+  "siteId": "OBRA_001",
+  "agentId": "AGENT_001",
+  "token": "MESMO_AGENT_TOKEN_DO_BACKEND",
+  "heartbeatSeconds": 10,
+  "movementTimeoutSeconds": 2,
+  "camera": {
+    "id": "CAM01",
+    "scheme": "http",
+    "ip": "192.168.1.100",
+    "username": "operator",
+    "password": "SENHA_LOCAL",
+    "channel": 0,
+    "verifyTls": false,
+    "ptzCodes": {
+      "up": "Up",
+      "down": "Down",
+      "left": "Left",
+      "right": "Right"
+    }
+  }
+}
+

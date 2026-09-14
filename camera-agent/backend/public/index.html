@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Neo Vision — Controle PTZ</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="card">
+    <header><div class="brand">NEO <span>VISION</span></div><div class="subtitle">CONTROLE REMOTO PTZ</div></header>
+    <section class="settings">
+      <label>Câmera<input id="camera" value="CAM01" autocomplete="off"></label>
+      <label>Chave do operador<input id="key" type="password" placeholder="Informe para conectar"></label>
+      <button id="connect">Conectar</button>
+    </section>
+    <section class="status">
+      <div><span id="agentDot" class="dot"></span><small>AGENT</small><strong id="agentStatus">DESCONHECIDO</strong></div>
+      <div><span id="cameraDot" class="dot"></span><small>CÂMERA</small><strong id="cameraStatus">DESCONHECIDA</strong></div>
+    </section>
+    <section class="pad" aria-label="Controles PTZ">
+      <button class="move up" data-direction="up" aria-label="Mover para cima">↑</button>
+      <button class="move left" data-direction="left" aria-label="Mover para esquerda">←</button>
+      <button id="stop" class="stop" aria-label="Parar">STOP</button>
+      <button class="move right" data-direction="right" aria-label="Mover para direita">→</button>
+      <button class="move down" data-direction="down" aria-label="Mover para baixo">↓</button>
+    </section>
+    <p id="message" role="status">Informe a chave e conecte.</p>
+    <footer>O movimento para automaticamente ao soltar o botão.</footer>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
+
