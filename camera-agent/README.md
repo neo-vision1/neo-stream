@@ -76,7 +76,6 @@ O driver usa o padrão CGI `/cgi-bin/ptz.cgi`, autenticação Digest e os códig
 
 ## Implantação inicial
 
-Para validar ponta a ponta, rode o backend em uma máquina acessível pela internet com HTTPS/WSS. Libere somente a porta HTTPS do backend. Não libere a câmera nem o notebook diretamente.
+Para publicar em uma VM Oracle Cloud gratuita com HTTPS/WSS automático, siga [`deploy/DEPLOY_ORACLE.md`](deploy/DEPLOY_ORACLE.md). Libere somente SSH, HTTP e HTTPS na VM. Não libere a câmera nem o notebook diretamente.
 
 O MVP mantém sessões em memória. Reiniciar o backend desconecta os Agents, que se reconectam automaticamente.
-

@@ -28,6 +28,8 @@ const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 
 app.use(express.json({ limit: '16kb' }));
 app.use(express.static(publicDir));
 
+app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
 function requireOperator(req, res, next) {
   const supplied = req.get('x-api-key') || '';
   const a = Buffer.from(supplied);
@@ -94,4 +96,3 @@ wss.on('connection', ws => {
 });
 
 server.listen(PORT, () => console.log(`Neo Vision Camera Backend ativo na porta ${PORT}`));
-
