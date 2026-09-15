@@ -1,5 +1,5 @@
 {
-  "server": "wss://api.exemplo.com/agent",
+  "server": "wss://neo-vision-camera.seu-subdominio.workers.dev/ws/OBRA_001",
   "siteId": "OBRA_001",
   "agentId": "AGENT_001",
   "token": "MESMO_AGENT_TOKEN_DO_BACKEND",
@@ -21,4 +21,3 @@
     }
   }
 }
-

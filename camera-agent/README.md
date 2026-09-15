@@ -1,37 +1,33 @@
-# Neo Vision Camera Agent — MVP
+# Neo Vision Camera Agent — Cloudflare
 
-Controle remoto PTZ de uma câmera Intelbras por meio de um notebook Windows na mesma rede local. Funciona atrás de Starlink/CGNAT porque o notebook inicia uma conexão WebSocket de saída com o servidor.
+Controle remoto PTZ de uma câmera Intelbras por meio de um notebook Windows na mesma rede local. Funciona atrás de Starlink/CGNAT porque o notebook inicia uma conexão WebSocket de saída com o Cloudflare.
 
 ```text
-Painel web -> Backend HTTPS/WSS -> Agent no notebook -> câmera na LAN
+Painel + WebSocket no Cloudflare -> Agent no notebook -> câmera na LAN
 ```
 
-O vídeo não passa pelo Agent. Continue enviando o vídeo da câmera por RTMP para o serviço de streaming e use este projeto apenas para o controle PTZ.
+Oracle e Vercel não são necessários. O vídeo não passa pelo Agent: continue enviando-o por RTMP para o serviço de streaming e use este projeto apenas para o controle PTZ.
 
 ## O que está incluído
 
+- Cloudflare Worker com painel e endpoint WSS.
+- Durable Object por local, com hibernação WebSocket.
 - Painel responsivo com UP, DOWN, LEFT, RIGHT e STOP.
-- Backend Node.js com API REST e WebSocket.
 - Agent Python com HTTP Digest para a câmera.
 - Heartbeat, reconexão automática e estado online/offline.
 - STOP ao soltar/sair do botão e timeout local de 2 segundos.
 - Testes automatizados e script para gerar `.exe` no Windows.
 
-## 1. Backend
+## 1. Publicar no Cloudflare
 
-Requer Node.js 20 ou superior.
+Requer Node.js 20 ou superior para executar a implantação.
 
 ```powershell
-cd backend
-copy .env.example .env
-npm install
-npm test
-npm start
+cd cloudflare
+.\deploy.ps1
 ```
 
-Edite `.env` e troque obrigatoriamente os dois segredos. Em produção, publique atrás de HTTPS; o WebSocket será `wss://` automaticamente.
-
-Abra `http://localhost:8080`, informe a chave do operador e use o painel.
+O script configura `AGENT_TOKEN` e `OPERATOR_KEY` como secrets e publica o painel, Worker e Durable Object. Veja [as instruções completas](cloudflare/DEPLOY_CLOUDFLARE.md).
 
 ## 2. Agent no notebook da câmera
 
@@ -49,8 +45,8 @@ python agent.py
 
 Preencha `config.json` com:
 
-- endereço `ws://` de teste ou `wss://` de produção;
-- o mesmo `AGENT_TOKEN` do backend;
+- URL `wss://...workers.dev/ws/OBRA_001` publicada pelo Cloudflare;
+- o mesmo `AGENT_TOKEN` configurado como secret no Cloudflare;
 - IP, usuário e senha locais da câmera.
 
 O arquivo `config.json` é ignorado pelo Git e deve ficar apenas no notebook.
@@ -74,8 +70,6 @@ O executável será criado em `agent\dist\NeoVisionCameraAgent.exe`. Mantenha `c
 
 O driver usa o padrão CGI `/cgi-bin/ptz.cgi`, autenticação Digest e os códigos `Up`, `Down`, `Left` e `Right`. Confirme a compatibilidade com o modelo/firmware antes do uso em campo.
 
-## Implantação inicial
+## Backend local legado
 
-Para publicar em uma VM Oracle Cloud gratuita com HTTPS/WSS automático, siga [`deploy/DEPLOY_ORACLE.md`](deploy/DEPLOY_ORACLE.md). Libere somente SSH, HTTP e HTTPS na VM. Não libere a câmera nem o notebook diretamente.
-
-O MVP mantém sessões em memória. Reiniciar o backend desconecta os Agents, que se reconectam automaticamente.
+A pasta `backend/` mantém o protótipo Node.js apenas para testes locais. A implantação de produção usa `cloudflare/`; não é necessário manter uma VM ligada.

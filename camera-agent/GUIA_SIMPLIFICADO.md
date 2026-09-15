@@ -7,17 +7,17 @@ Controlar remotamente uma câmera Intelbras na rede Starlink usando um notebook 
 ## Arquitetura
 
 ```text
-Painel -> Backend HTTPS/WSS -> Agent Windows -> API local da câmera
+Painel + WSS no Cloudflare -> Agent Windows -> API local da câmera
 ```
 
-O notebook inicia a conexão de saída; portanto, CGNAT não impede o controle. O vídeo segue diretamente por RTMP e não passa pelo Agent.
+O notebook inicia a conexão de saída; portanto, CGNAT não impede o controle. Oracle e Vercel não são usados. O vídeo segue diretamente por RTMP e não passa pelo Agent.
 
 ## Primeiro ciclo
 
-1. Instalar e testar o backend.
+1. Publicar a pasta `cloudflare/` com `deploy.ps1`.
 2. Configurar o Agent no notebook.
 3. Confirmar o PTZ local com `test_camera.py`.
-4. Conectar o Agent ao backend.
+4. Conectar o Agent ao endereço WSS do Cloudflare.
 5. Testar UP, DOWN, LEFT, RIGHT e STOP pelo painel.
 6. Gerar o executável com `build_exe.bat`.
 
