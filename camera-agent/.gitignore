@@ -1,0 +1,10 @@
+node_modules/
+.env
+agent/config.json
+agent/logs/
+agent/build/
+agent/dist/
+__pycache__/
+*.pyc
+cloudflare/.dev.vars*
+cloudflare/.env*

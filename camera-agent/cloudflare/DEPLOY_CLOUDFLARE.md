@@ -10,7 +10,7 @@ No PowerShell, dentro desta pasta:
 .\deploy.ps1
 ```
 
-O Wrangler abrirá o navegador para autorizar a conta Cloudflare, pedirá dois segredos e publicará o sistema:
+O Wrangler abrirá o navegador para autorizar a conta Cloudflare, publicará o sistema e depois pedirá dois segredos:
 
 - `AGENT_TOKEN`: usado somente pelo Agent no notebook;
 - `OPERATOR_KEY`: digitado no painel pelos operadores.
