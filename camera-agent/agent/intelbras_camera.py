@@ -32,7 +32,10 @@ class IntelbrasCamera:
     def check_online(self):
         try:
             response = self.session.get(urljoin(self.base_url, "/cgi-bin/magicBox.cgi"), params={"action": "getSystemInfo"}, timeout=3, verify=self.verify_tls)
-            return response.ok
+            # Alguns modelos Intelbras respondem HTTP 400/"Error" para
+            # getSystemInfo, mesmo estando acessíveis. Qualquer resposta HTTP
+            # abaixo de 500 confirma que o dispositivo respondeu na rede.
+            return response.status_code < 500
         except requests.RequestException:
             return False
 
@@ -66,4 +69,3 @@ class IntelbrasCamera:
                 if not ignore_errors:
                     raise
                 return False
-

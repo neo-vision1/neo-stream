@@ -37,7 +37,11 @@ class CameraTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             camera.move("zoom", 5)
 
+    def test_http_400_still_confirms_camera_is_reachable(self):
+        self.session.get.return_value.status_code = 400
+        camera = IntelbrasCamera(self.config, session=self.session)
+        self.assertTrue(camera.check_online())
+
 
 if __name__ == "__main__":
     unittest.main()
-
