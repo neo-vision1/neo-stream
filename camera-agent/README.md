@@ -13,7 +13,7 @@ Oracle e Vercel não são necessários. Cada câmera envia o vídeo por RTMP ao 
 - Cloudflare Worker com painel e endpoint WSS.
 - Durable Object por local, com hibernação WebSocket.
 - Um único painel responsivo com lista de câmeras, vídeo Mux e UP, DOWN, LEFT, RIGHT e STOP.
-- Login por e-mail e senha com Supabase Auth; o Worker valida a sessão antes de aceitar comandos PTZ.
+- Login com Google por meio do Supabase Auth; o Worker valida a sessão e o e-mail autorizado antes de aceitar comandos PTZ.
 - Agent Python com HTTP Digest para a câmera.
 - Heartbeat individual das câmeras, reconexão automática e estado online/offline.
 - STOP ao soltar/sair do botão e timeout local de 2 segundos.

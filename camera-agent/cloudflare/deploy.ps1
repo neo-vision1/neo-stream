@@ -15,4 +15,7 @@ npx wrangler secret put SUPABASE_URL
 Write-Host "Informe a chave publica do Supabase (Publishable key ou anon key)."
 npx wrangler secret put SUPABASE_ANON_KEY
 
+Write-Host "Informe o e-mail Google autorizado a operar o painel."
+npx wrangler secret put ALLOWED_OPERATOR_EMAIL
+
 Write-Host "Concluido. Copie a URL workers.dev exibida acima para agent/config.json."
