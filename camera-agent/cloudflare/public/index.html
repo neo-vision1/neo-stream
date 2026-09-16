@@ -40,13 +40,14 @@
 
       <section class="viewer-card">
         <div class="viewer-head">
-          <div><small>TRANSMISSÃO MUX</small><h1 id="cameraName">Câmera 01</h1></div>
+          <div><h1 id="cameraName">Câmera 01</h1></div>
           <span id="cameraIdBadge" class="badge">CAM01</span>
         </div>
         <div class="player-wrap">
           <iframe id="muxPlayer" title="Vídeo ao vivo" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
           <div id="videoEmpty" class="video-empty"><strong>Vídeo ainda não configurado</strong><span>Adicione o Playback ID do Mux para esta câmera.</span></div>
         </div>
+        <p class="latency-warning"><strong>Aviso:</strong> o vídeo ao vivo pode apresentar um atraso aproximado de 5 segundos.</p>
         <p id="message" role="status">Clique em conectar.</p>
       </section>
 
