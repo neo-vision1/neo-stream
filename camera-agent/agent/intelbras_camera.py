@@ -15,7 +15,7 @@ class IntelbrasCamera:
         self.session = session or requests.Session()
         self.session.auth = HTTPDigestAuth(config["username"], config["password"])
         self.verify_tls = bool(config.get("verifyTls", False))
-        self.channel = int(config.get("channel", 0))
+        self.channel = int(config.get("channel", 1))
         self.codes = config.get("ptzCodes", {"up": "Up", "down": "Down", "left": "Left", "right": "Right"})
         self._timer = None
         self._active_code = None

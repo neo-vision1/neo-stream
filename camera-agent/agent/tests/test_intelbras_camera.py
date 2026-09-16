@@ -24,6 +24,7 @@ class CameraTests(unittest.TestCase):
         second = self.session.get.call_args_list[1].kwargs["params"]
         self.assertEqual((first["action"], first["code"]), ("start", "Left"))
         self.assertEqual((second["action"], second["code"]), ("stop", "Left"))
+        self.assertEqual(first["channel"], 1)
 
     def test_timeout_sends_stop(self):
         camera = IntelbrasCamera(self.config, movement_timeout=0.03, session=self.session)

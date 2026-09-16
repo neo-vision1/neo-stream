@@ -24,6 +24,11 @@ function setDot(dot, online) { dot.className = `dot ${online ? "online" : "offli
 function message(text) { elements.message.textContent = text; }
 
 function selectCamera(cameraId) {
+  if (activeDirection && selectedCameraId !== cameraId) {
+    send({ type: "ptz", cameraId: selectedCameraId, command: "stop" });
+    document.querySelectorAll(".move.active").forEach((button) => button.classList.remove("active"));
+    activeDirection = null;
+  }
   selectedCameraId = cameraId;
   const camera = selectedCamera();
   elements.cameraName.textContent = camera?.name || cameraId;
