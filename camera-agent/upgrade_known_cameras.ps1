@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $agentDir = Join-Path $env:LOCALAPPDATA "NeoVisionAgent"
 $cloudflareDir = Join-Path $env:LOCALAPPDATA "NeoVisionCloudflareDeploy"
 $configPath = Join-Path $agentDir "config.json"
-$rawBase = "https://raw.githubusercontent.com/neo-vision1/neo-stream/main/camera-agent"
+$rawBase = "https://raw.githubusercontent.com/neo-vision1/neo-stream/052a6a1b56bd0add5f5b3072102ac008ba752553/camera-agent"
 
 if (-not (Test-Path $configPath)) {
     throw "config.json não encontrado em $configPath"
@@ -61,7 +61,9 @@ $json = $newConfig | ConvertTo-Json -Depth 10
 
 $agentFiles = @("agent.py", "intelbras_camera.py", "test_camera.py")
 foreach ($file in $agentFiles) {
-    Invoke-WebRequest -UseBasicParsing "$rawBase/agent/$file" -OutFile (Join-Path $agentDir $file)
+    $destination = Join-Path $agentDir $file
+    & curl.exe -L "$rawBase/agent/$file" -o $destination
+    if ($LASTEXITCODE -ne 0) { throw "Falha ao baixar $file" }
 }
 
 $cloudflareFiles = @(
@@ -79,7 +81,8 @@ foreach ($file in $cloudflareFiles) {
     $destination = Join-Path $cloudflareDir $file
     $destinationDir = Split-Path $destination -Parent
     New-Item -ItemType Directory -Force -Path $destinationDir | Out-Null
-    Invoke-WebRequest -UseBasicParsing "$rawBase/cloudflare/$file" -OutFile $destination
+    & curl.exe -L "$rawBase/cloudflare/$file" -o $destination
+    if ($LASTEXITCODE -ne 0) { throw "Falha ao baixar $file" }
 }
 
 Push-Location $cloudflareDir
