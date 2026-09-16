@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $agentDir = Join-Path $env:LOCALAPPDATA "NeoVisionAgent"
-$cloudflareDir = Join-Path $env:LOCALAPPDATA "NeoVisionCloudflareDeploy"
+$cloudflareDir = Join-Path $env:LOCALAPPDATA "NeoVisionCloudflareDeployV2"
 $configPath = Join-Path $agentDir "config.json"
 $rawBase = "https://raw.githubusercontent.com/neo-vision1/neo-stream/052a6a1b56bd0add5f5b3072102ac008ba752553/camera-agent"
 
