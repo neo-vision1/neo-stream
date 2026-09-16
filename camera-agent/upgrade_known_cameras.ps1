@@ -44,7 +44,7 @@ $newConfig = [ordered]@{
         ptzCodes = $ptzCodes
     }
     cameras = @(
-        [ordered]@{ id = "CAM01"; name = "Câmera 01"; ip = "192.168.15.17" }
+        [ordered]@{ id = "CAM01"; name = "Câmera 01"; ip = "192.168.1.17" }
         [ordered]@{ id = "CAM02"; name = "Câmera 02"; ip = "192.168.15.18" }
         [ordered]@{ id = "CAM03"; name = "Câmera 03"; ip = "192.168.15.16" }
         [ordered]@{ id = "CAM04"; name = "Câmera 04"; ip = "192.168.15.19" }
