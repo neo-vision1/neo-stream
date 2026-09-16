@@ -1,7 +1,8 @@
 $ErrorActionPreference = "Stop"
 
 $agentDir = Join-Path $env:LOCALAPPDATA "NeoVisionAgent"
-$projectDir = Join-Path $env:USERPROFILE "Documents\neo-stream-main\camera-agent"
+$documentsDir = [Environment]::GetFolderPath("MyDocuments")
+$projectDir = Join-Path $documentsDir "neo-stream-main\camera-agent"
 $cloudflareDir = Join-Path $projectDir "cloudflare"
 $configPath = Join-Path $agentDir "config.json"
 $rawBase = "https://raw.githubusercontent.com/neo-vision1/neo-stream/main/camera-agent"
