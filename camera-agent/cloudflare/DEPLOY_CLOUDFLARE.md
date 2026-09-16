@@ -15,11 +15,10 @@ O Wrangler abrirá o navegador para autorizar a conta Cloudflare, publicará o s
 - `AGENT_TOKEN`: usado somente pelo Agent no notebook;
 - `SUPABASE_URL`: URL do projeto Supabase;
 - `SUPABASE_ANON_KEY`: chave pública `Publishable` ou `anon` do projeto Supabase.
-- `ALLOWED_OPERATOR_EMAIL`: único e-mail Google autorizado a controlar as câmeras.
 
 O token do Agent deve ser longo e aleatório. A URL e a chave pública do Supabase podem aparecer no navegador, mas ficam configuradas no Cloudflare e não precisam ser gravadas no repositório. Nunca use a chave `service_role` no painel.
 
-No Supabase, ative o provedor Google em **Authentication → Providers → Google**. O Worker ainda compara o e-mail devolvido pelo Supabase com `ALLOWED_OPERATOR_EMAIL`, impedindo o acesso de outras contas.
+No Supabase, mantenha o cadastro público desativado e crie os operadores em **Authentication → Users**. Somente usuários criados pela Neo Vision conseguem entrar.
 
 ## Configurar o notebook
 

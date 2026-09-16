@@ -1,7 +1,10 @@
 (() => {
   const loginView = document.querySelector("#loginView");
   const appShell = document.querySelector("#appShell");
-  const button = document.querySelector("#googleLoginButton");
+  const form = document.querySelector("#loginForm");
+  const email = document.querySelector("#loginEmail");
+  const password = document.querySelector("#loginPassword");
+  const button = document.querySelector("#loginButton");
   const loginMessage = document.querySelector("#loginMessage");
   const accountEmail = document.querySelector("#accountEmail");
   const logout = document.querySelector("#logout");
@@ -47,18 +50,23 @@
     }
   }
 
-  button.addEventListener("click", async () => {
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
     if (!client) return;
     button.disabled = true;
-    setLoginMessage("Abrindo o Google…");
-    const { error } = await client.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin }
+    setLoginMessage("Entrando…");
+    const { data, error } = await client.auth.signInWithPassword({
+      email: email.value.trim(),
+      password: password.value
     });
+    password.value = "";
+    button.disabled = false;
     if (error) {
-      button.disabled = false;
-      setLoginMessage("Não foi possível abrir o login do Google.", true);
+      setLoginMessage("E-mail ou senha incorretos.", true);
+      return;
     }
+    setLoginMessage("Acesso autorizado.");
+    showSession(data.session);
   });
 
   logout.addEventListener("click", async () => {

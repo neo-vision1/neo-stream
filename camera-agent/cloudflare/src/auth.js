@@ -23,10 +23,7 @@ export async function verifySupabaseUser(env, accessToken, fetchImpl = fetch) {
     });
     if (!response.ok) return null;
     const user = await response.json();
-    if (typeof user?.id !== "string" || !user.id || typeof user.email !== "string") return null;
-    const allowedEmail = String(env.ALLOWED_OPERATOR_EMAIL || "").trim().toLowerCase();
-    if (!allowedEmail || user.email.trim().toLowerCase() !== allowedEmail) return null;
-    return { id: user.id, email: user.email };
+    return typeof user?.id === "string" && user.id ? { id: user.id, email: user.email || null } : null;
   } catch {
     return null;
   }
