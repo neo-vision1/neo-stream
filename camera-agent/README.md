@@ -29,6 +29,8 @@ cd cloudflare
 
 O script configura `AGENT_TOKEN` e `OPERATOR_KEY` como secrets e publica o painel, Worker e Durable Object. Veja [as instruções completas](cloudflare/DEPLOY_CLOUDFLARE.md).
 
+Para atualizar uma instalação existente da Neo Vision com os oito IPs já conhecidos e os 11 Playback IDs, pare o Agent e execute `upgrade_known_cameras.ps1` na raiz de `camera-agent`. O script cria backup do `config.json`, preserva os segredos locais, atualiza os arquivos e executa `wrangler deploy`.
+
 ## 2. Agent no notebook da câmera
 
 Requer Python 3.11 ou superior durante o teste inicial.

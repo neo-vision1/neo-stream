@@ -1,0 +1,98 @@
+$ErrorActionPreference = "Stop"
+
+$agentDir = Join-Path $env:LOCALAPPDATA "NeoVisionAgent"
+$projectDir = Join-Path $env:USERPROFILE "Documents\neo-stream-main\camera-agent"
+$cloudflareDir = Join-Path $projectDir "cloudflare"
+$configPath = Join-Path $agentDir "config.json"
+$rawBase = "https://raw.githubusercontent.com/neo-vision1/neo-stream/main/camera-agent"
+
+if (-not (Test-Path $configPath)) {
+    throw "config.json não encontrado em $configPath"
+}
+if (-not (Test-Path $cloudflareDir)) {
+    throw "Pasta Cloudflare não encontrada em $cloudflareDir"
+}
+
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$backupPath = Join-Path $agentDir "config.backup-$timestamp.json"
+Copy-Item $configPath $backupPath
+
+$current = Get-Content $configPath -Raw | ConvertFrom-Json
+if ($current.camera) {
+    $sourceCamera = $current.camera
+} elseif ($current.cameraDefaults) {
+    $sourceCamera = $current.cameraDefaults
+} else {
+    throw "Não foi possível localizar as credenciais locais da câmera no config.json"
+}
+
+$ptzCodes = $sourceCamera.ptzCodes
+if (-not $ptzCodes) {
+    $ptzCodes = [ordered]@{ up = "Up"; down = "Down"; left = "Left"; right = "Right" }
+}
+
+$newConfig = [ordered]@{
+    server = $current.server
+    siteId = $current.siteId
+    agentId = $current.agentId
+    token = $current.token
+    heartbeatSeconds = if ($current.heartbeatSeconds) { $current.heartbeatSeconds } else { 10 }
+    movementTimeoutSeconds = if ($current.movementTimeoutSeconds) { $current.movementTimeoutSeconds } else { 2 }
+    cameraDefaults = [ordered]@{
+        scheme = if ($sourceCamera.scheme) { $sourceCamera.scheme } else { "http" }
+        username = $sourceCamera.username
+        password = $sourceCamera.password
+        channel = 1
+        verifyTls = [bool]$sourceCamera.verifyTls
+        ptzCodes = $ptzCodes
+    }
+    cameras = @(
+        [ordered]@{ id = "CAM01"; name = "Câmera 01"; ip = "192.168.15.17" }
+        [ordered]@{ id = "CAM02"; name = "Câmera 02"; ip = "192.168.15.18" }
+        [ordered]@{ id = "CAM03"; name = "Câmera 03"; ip = "192.168.15.16" }
+        [ordered]@{ id = "CAM04"; name = "Câmera 04"; ip = "192.168.15.19" }
+        [ordered]@{ id = "CAM05"; name = "Câmera 05"; ip = "192.168.15.2" }
+        [ordered]@{ id = "CAM07"; name = "Câmera 07"; ip = "192.168.15.13" }
+        [ordered]@{ id = "CAM08"; name = "Câmera 08"; ip = "192.168.15.12" }
+        [ordered]@{ id = "CAM09"; name = "Câmera 09"; ip = "192.168.15.20" }
+    )
+}
+
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$json = $newConfig | ConvertTo-Json -Depth 10
+[System.IO.File]::WriteAllText($configPath, $json, $utf8NoBom)
+
+$agentFiles = @("agent.py", "intelbras_camera.py", "test_camera.py")
+foreach ($file in $agentFiles) {
+    Invoke-WebRequest -UseBasicParsing "$rawBase/agent/$file" -OutFile (Join-Path $agentDir $file)
+}
+
+$cloudflareFiles = @(
+    "src/index.js",
+    "src/protocol.js",
+    "public/index.html",
+    "public/app.js",
+    "public/style.css",
+    "public/cameras.js"
+)
+foreach ($file in $cloudflareFiles) {
+    $destination = Join-Path $cloudflareDir $file
+    $destinationDir = Split-Path $destination -Parent
+    New-Item -ItemType Directory -Force -Path $destinationDir | Out-Null
+    Invoke-WebRequest -UseBasicParsing "$rawBase/cloudflare/$file" -OutFile $destination
+}
+
+Push-Location $cloudflareDir
+try {
+    npx wrangler deploy
+    if ($LASTEXITCODE -ne 0) { throw "A publicação do Cloudflare falhou." }
+} finally {
+    Pop-Location
+}
+
+Write-Host ""
+Write-Host "Atualização concluída." -ForegroundColor Green
+Write-Host "Backup: $backupPath"
+Write-Host "Câmeras com PTZ: CAM01, CAM02, CAM03, CAM04, CAM05, CAM07, CAM08 e CAM09"
+Write-Host "Pendentes de IP: CAM06, CAM10 e CAM11"
+Write-Host "Agora execute: cd `"$agentDir`"; python .\agent.py"
