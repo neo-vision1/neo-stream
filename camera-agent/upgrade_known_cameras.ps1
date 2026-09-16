@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $agentDir = Join-Path $env:LOCALAPPDATA "NeoVisionAgent"
 $cloudflareDir = Join-Path $env:LOCALAPPDATA "NeoVisionCloudflareDeployV2"
 $configPath = Join-Path $agentDir "config.json"
-$rawBase = "https://raw.githubusercontent.com/neo-vision1/neo-stream/052a6a1b56bd0add5f5b3072102ac008ba752553/camera-agent"
+$rawBase = "https://raw.githubusercontent.com/neo-vision1/neo-stream/2cbf61967fe79acc699c18ffeff2c8e7323d8ae3/camera-agent"
 
 if (-not (Test-Path $configPath)) {
     throw "config.json não encontrado em $configPath"
