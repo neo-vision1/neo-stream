@@ -85,6 +85,24 @@ build_exe.bat
 
 O executável será criado em `agent\dist\NeoVisionCameraAgent.exe`. Mantenha `config.json` ao lado dele.
 
+## 5. Iniciar automaticamente com o Windows
+
+Com o Agent instalado em `%LOCALAPPDATA%\NeoVisionAgent`, execute `install_autostart.ps1`. O script cria a tarefa agendada `NeoVisionCameraAgent`, que inicia o Agent oculto após o login do usuário e tenta reiniciá-lo em caso de falha.
+
+O log fica em `%LOCALAPPDATA%\NeoVisionAgent\agent-autostart.log`. Para consultar o estado:
+
+```powershell
+Get-ScheduledTask -TaskName "NeoVisionCameraAgent"
+Get-ScheduledTaskInfo -TaskName "NeoVisionCameraAgent"
+```
+
+Para parar ou remover a inicialização automática:
+
+```powershell
+Stop-ScheduledTask -TaskName "NeoVisionCameraAgent"
+Unregister-ScheduledTask -TaskName "NeoVisionCameraAgent" -Confirm:$false
+```
+
 ## Teste seguro nas câmeras
 
 1. Confirme que o notebook abre o endereço da câmera na rede local.
