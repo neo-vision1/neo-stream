@@ -95,4 +95,10 @@ Write-Host "Atualização concluída." -ForegroundColor Green
 Write-Host "Backup: $backupPath"
 Write-Host "Câmeras com PTZ: CAM01, CAM02, CAM03, CAM04, CAM05, CAM07, CAM08 e CAM09"
 Write-Host "Pendentes de IP: CAM06, CAM10 e CAM11"
-Write-Host "Agora execute: cd `"$agentDir`"; python .\agent.py"
+Write-Host "Iniciando o Agent. Mantenha esta janela aberta." -ForegroundColor Cyan
+Push-Location $agentDir
+try {
+    python .\agent.py
+} finally {
+    Pop-Location
+}
