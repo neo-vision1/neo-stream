@@ -10,12 +10,15 @@ No PowerShell, dentro desta pasta:
 .\deploy.ps1
 ```
 
-O Wrangler abrirá o navegador para autorizar a conta Cloudflare, publicará o sistema e depois pedirá dois segredos:
+O Wrangler abrirá o navegador para autorizar a conta Cloudflare, publicará o sistema e depois pedirá três valores:
 
 - `AGENT_TOKEN`: usado somente pelo Agent no notebook;
-- `OPERATOR_KEY`: digitado no painel pelos operadores.
+- `SUPABASE_URL`: URL do projeto Supabase;
+- `SUPABASE_ANON_KEY`: chave pública `Publishable` ou `anon` do projeto Supabase.
 
-Use valores longos, aleatórios e diferentes. Eles ficam como secrets no Cloudflare e não são gravados no repositório.
+O token do Agent deve ser longo e aleatório. A URL e a chave pública do Supabase podem aparecer no navegador, mas ficam configuradas no Cloudflare e não precisam ser gravadas no repositório. Nunca use a chave `service_role` no painel.
+
+No Supabase, crie os operadores em **Authentication → Users**. O cadastro público não é exibido no painel: somente usuários já autorizados conseguem entrar.
 
 ## Configurar o notebook
 
@@ -35,10 +38,11 @@ Mantenha o restante da configuração da câmera. O local no fim da URL (`OBRA_0
 ## Testar
 
 1. Abra a URL `https://neo-vision-camera.SEUSUBDOMINIO.workers.dev`.
-2. Informe `OBRA_001`, `CAM01` e a `OPERATOR_KEY`.
-3. Inicie o Agent no notebook.
-4. Confirme que Agent e câmera aparecem online.
-5. Pressione uma direção e confirme que a câmera para ao soltar.
+2. Entre com um usuário criado no Supabase.
+3. Confirme `OBRA_001` e clique em **Conectar**.
+4. Inicie o Agent no notebook.
+5. Confirme que Agent e câmera aparecem online.
+6. Pressione uma direção e confirme que a câmera para ao soltar.
 
 O endpoint `/health` deve responder com `{"ok":true,"service":"neo-vision-camera"}`.
 

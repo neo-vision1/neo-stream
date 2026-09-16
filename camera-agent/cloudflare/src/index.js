@@ -1,12 +1,13 @@
 import { DurableObject } from "cloudflare:workers";
 import { heartbeatCameras, parseMessage, validIdentifier, validatePtz } from "./protocol.js";
+import { supabaseConfigured, verifySupabaseUser } from "./auth.js";
 
 const HEARTBEAT_MAX_AGE_MS = 30_000;
 
-function json(data, status = 200) {
+function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" }
+    headers: { "content-type": "application/json; charset=utf-8", ...headers }
   });
 }
 
@@ -25,6 +26,11 @@ export default {
 
     if (url.pathname === "/health") {
       return json({ ok: true, service: "neo-vision-camera" });
+    }
+
+    if (url.pathname === "/auth-config") {
+      if (!supabaseConfigured(env)) return json({ error: "Supabase not configured" }, 503, { "cache-control": "no-store" });
+      return json({ supabaseUrl: env.SUPABASE_URL, supabaseAnonKey: env.SUPABASE_ANON_KEY }, 200, { "cache-control": "no-store" });
     }
 
     const match = url.pathname.match(/^\/ws\/([A-Za-z0-9_-]{1,64})$/);
@@ -92,8 +98,9 @@ export class CameraSite extends DurableObject {
 
   async authenticate(ws, message, attachment) {
     const role = message.role === "operator" ? "operator" : "agent";
-    const expected = role === "operator" ? this.env.OPERATOR_KEY : this.env.AGENT_TOKEN;
-    if (!expected || typeof message.token !== "string" || message.token !== expected) {
+    const operatorUser = role === "operator" ? await verifySupabaseUser(this.env, message.accessToken) : null;
+    const agentAuthorized = role === "agent" && this.env.AGENT_TOKEN && message.token === this.env.AGENT_TOKEN;
+    if ((role === "operator" && !operatorUser) || (role === "agent" && !agentAuthorized)) {
       send(ws, { type: "error", error: "unauthorized" });
       ws.close(1008, "Unauthorized");
       return;
@@ -108,6 +115,7 @@ export class CameraSite extends DurableObject {
       ...attachment,
       authenticated: true,
       role,
+      userId: operatorUser?.id || null,
       agentId: role === "agent" && validIdentifier(message.agentId) ? message.agentId : null
     };
     ws.serializeAttachment(next);

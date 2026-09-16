@@ -7,13 +7,28 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <main class="shell">
+  <main id="loginView" class="auth-shell">
+    <section class="login-card" aria-labelledby="loginTitle">
+      <div class="brand login-brand">NEO <span>VISION</span></div>
+      <p class="login-kicker">ACESSO AO MONITORAMENTO</p>
+      <h1 id="loginTitle">Entre na sua conta</h1>
+      <p class="login-copy">Use o usuário autorizado no Supabase para acessar os vídeos e o controle das câmeras.</p>
+      <form id="loginForm" class="login-form">
+        <label>E-mail<input id="loginEmail" type="email" autocomplete="username" required placeholder="nome@empresa.com.br"></label>
+        <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Sua senha"></label>
+        <button id="loginButton" type="submit">Entrar</button>
+      </form>
+      <p id="loginMessage" class="login-message" role="status">Informe seu e-mail e senha.</p>
+    </section>
+  </main>
+
+  <main id="appShell" class="shell" hidden>
     <header class="topbar">
       <div><div class="brand">NEO <span>VISION</span></div><div class="subtitle">MONITORAMENTO AO VIVO E CONTROLE PTZ</div></div>
       <div class="connection">
         <label>Local<input id="site" value="OBRA_001" autocomplete="off"></label>
-        <label>Chave do operador<input id="key" type="password" placeholder="Informe a chave"></label>
         <button id="connect">Conectar</button>
+        <div class="account"><span id="accountEmail"></span><button id="logout" type="button">Sair</button></div>
       </div>
     </header>
 
@@ -32,7 +47,7 @@
           <iframe id="muxPlayer" title="Vídeo ao vivo" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
           <div id="videoEmpty" class="video-empty"><strong>Vídeo ainda não configurado</strong><span>Adicione o Playback ID do Mux para esta câmera.</span></div>
         </div>
-        <p id="message" role="status">Informe a chave e conecte.</p>
+        <p id="message" role="status">Clique em conectar.</p>
       </section>
 
       <aside class="control-card">
@@ -52,6 +67,8 @@
       </aside>
     </section>
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js"></script>
+  <script src="/auth.js"></script>
   <script src="/cameras.js"></script>
   <script src="/app.js"></script>
 </body>

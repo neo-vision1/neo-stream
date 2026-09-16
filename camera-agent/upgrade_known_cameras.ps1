@@ -71,8 +71,10 @@ $cloudflareFiles = @(
     "package-lock.json",
     "wrangler.jsonc",
     "src/index.js",
+    "src/auth.js",
     "src/protocol.js",
     "public/index.html",
+    "public/auth.js",
     "public/app.js",
     "public/style.css",
     "public/cameras.js"

@@ -13,6 +13,7 @@ Oracle e Vercel não são necessários. Cada câmera envia o vídeo por RTMP ao 
 - Cloudflare Worker com painel e endpoint WSS.
 - Durable Object por local, com hibernação WebSocket.
 - Um único painel responsivo com lista de câmeras, vídeo Mux e UP, DOWN, LEFT, RIGHT e STOP.
+- Login por e-mail e senha com Supabase Auth; o Worker valida a sessão antes de aceitar comandos PTZ.
 - Agent Python com HTTP Digest para a câmera.
 - Heartbeat individual das câmeras, reconexão automática e estado online/offline.
 - STOP ao soltar/sair do botão e timeout local de 2 segundos.
@@ -27,7 +28,7 @@ cd cloudflare
 .\deploy.ps1
 ```
 
-O script configura `AGENT_TOKEN` e `OPERATOR_KEY` como secrets e publica o painel, Worker e Durable Object. Veja [as instruções completas](cloudflare/DEPLOY_CLOUDFLARE.md).
+O script configura `AGENT_TOKEN`, `SUPABASE_URL` e `SUPABASE_ANON_KEY` no Cloudflare e publica o painel, Worker e Durable Object. Veja [as instruções completas](cloudflare/DEPLOY_CLOUDFLARE.md).
 
 Para atualizar uma instalação existente da Neo Vision com os oito IPs já conhecidos e os 11 Playback IDs, pare o Agent e execute `upgrade_known_cameras.ps1` na raiz de `camera-agent`. O script cria backup do `config.json`, preserva os segredos locais, atualiza os arquivos e executa `wrangler deploy`.
 
