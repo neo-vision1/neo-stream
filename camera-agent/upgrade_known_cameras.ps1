@@ -49,9 +49,11 @@ $newConfig = [ordered]@{
         [ordered]@{ id = "CAM03"; name = "Câmera 03"; ip = "192.168.15.16" }
         [ordered]@{ id = "CAM04"; name = "Câmera 04"; ip = "192.168.15.19" }
         [ordered]@{ id = "CAM05"; name = "Câmera 05"; ip = "192.168.15.2" }
+        [ordered]@{ id = "CAM06"; name = "Câmera 06"; ip = "192.168.15.15" }
         [ordered]@{ id = "CAM07"; name = "Câmera 07"; ip = "192.168.15.13" }
         [ordered]@{ id = "CAM08"; name = "Câmera 08"; ip = "192.168.15.12" }
         [ordered]@{ id = "CAM09"; name = "Câmera 09"; ip = "192.168.15.20" }
+        [ordered]@{ id = "CAM10"; name = "Câmera 10"; ip = "192.168.15.7" }
     )
 }
 
@@ -100,8 +102,8 @@ try {
 Write-Host ""
 Write-Host "Atualização concluída." -ForegroundColor Green
 Write-Host "Backup: $backupPath"
-Write-Host "Câmeras com PTZ: CAM01, CAM02, CAM03, CAM04, CAM05, CAM07, CAM08 e CAM09"
-Write-Host "Pendentes de IP: CAM06, CAM10 e CAM11"
+Write-Host "Câmeras com PTZ: CAM01, CAM02, CAM03, CAM04, CAM05, CAM06, CAM07, CAM08, CAM09 e CAM10"
+Write-Host "Pendente de IP: CAM11"
 Write-Host "Iniciando o Agent. Mantenha esta janela aberta." -ForegroundColor Cyan
 Push-Location $agentDir
 try {
