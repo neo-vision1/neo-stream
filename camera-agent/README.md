@@ -1,20 +1,20 @@
 # Neo Vision Camera Agent — Cloudflare
 
-Controle remoto PTZ de uma câmera Intelbras por meio de um notebook Windows na mesma rede local. Funciona atrás de Starlink/CGNAT porque o notebook inicia uma conexão WebSocket de saída com o Cloudflare.
+Monitoramento Mux e controle remoto PTZ de até 11 câmeras Intelbras por meio de um notebook Windows na mesma rede local. Funciona atrás de Starlink/CGNAT porque o notebook inicia uma conexão WebSocket de saída com o Cloudflare.
 
 ```text
-Painel + WebSocket no Cloudflare -> Agent no notebook -> câmera na LAN
+Painel com vídeo Mux + WebSocket no Cloudflare -> Agent no notebook -> câmeras na LAN
 ```
 
-Oracle e Vercel não são necessários. O vídeo não passa pelo Agent: continue enviando-o por RTMP para o serviço de streaming e use este projeto apenas para o controle PTZ.
+Oracle e Vercel não são necessários. Cada câmera envia o vídeo por RTMP ao Mux, e o painel incorpora o respectivo Playback ID. O vídeo não passa pelo Agent; o Agent transporta somente status e comandos PTZ.
 
 ## O que está incluído
 
 - Cloudflare Worker com painel e endpoint WSS.
 - Durable Object por local, com hibernação WebSocket.
-- Painel responsivo com UP, DOWN, LEFT, RIGHT e STOP.
+- Um único painel responsivo com lista de câmeras, vídeo Mux e UP, DOWN, LEFT, RIGHT e STOP.
 - Agent Python com HTTP Digest para a câmera.
-- Heartbeat, reconexão automática e estado online/offline.
+- Heartbeat individual das câmeras, reconexão automática e estado online/offline.
 - STOP ao soltar/sair do botão e timeout local de 2 segundos.
 - Testes automatizados e script para gerar `.exe` no Windows.
 
@@ -47,11 +47,32 @@ Preencha `config.json` com:
 
 - URL `wss://...workers.dev/ws/OBRA_001` publicada pelo Cloudflare;
 - o mesmo `AGENT_TOKEN` configurado como secret no Cloudflare;
-- IP, usuário e senha locais da câmera.
+- os 11 IDs e IPs locais das câmeras;
+- usuário/senha compartilhados em `cameraDefaults`, ou substituições individuais quando necessário;
+- `channel: 1`, confirmado para o modelo Intelbras testado.
 
 O arquivo `config.json` é ignorado pelo Git e deve ficar apenas no notebook.
 
-## 3. Gerar o executável
+O formato antigo com uma propriedade `camera` continua aceito durante a migração. Para múltiplas câmeras, use o formato `cameraDefaults` + `cameras` de `agent/config.example.json`.
+
+## 3. Vídeo Mux no mesmo painel
+
+Edite `cloudflare/public/cameras.js` e informe somente o **Playback ID público** de cada transmissão:
+
+```js
+{ id: "CAM01", name: "Câmera 01", playbackId: "PLAYBACK_ID_DO_MUX" }
+```
+
+Não coloque a Stream Key RTMP nesse arquivo. A câmera usa RTMP URL + Stream Key para enviar; o navegador usa apenas o Playback ID para assistir. O painel incorpora o player web oficial do Mux e associa o vídeo ao mesmo ID lógico usado pelo PTZ.
+
+Depois, publique novamente:
+
+```powershell
+cd cloudflare
+npx wrangler deploy
+```
+
+## 4. Gerar o executável
 
 Com o Agent já testado e o `config.json` preenchido:
 
@@ -61,14 +82,15 @@ build_exe.bat
 
 O executável será criado em `agent\dist\NeoVisionCameraAgent.exe`. Mantenha `config.json` ao lado dele.
 
-## Teste seguro na câmera
+## Teste seguro nas câmeras
 
 1. Confirme que o notebook abre o endereço da câmera na rede local.
-2. Execute `python test_camera.py`.
-3. O teste move para a esquerda por apenas 0,3 segundo e envia STOP.
-4. Se o modelo usar códigos diferentes, ajuste `ptzCodes` no `config.json` sem alterar o programa.
+2. Confirme no `config.json` o ID, IP e `channel: 1`.
+3. Execute `python test_camera.py`, informe o ID e confirme com ENTER.
+4. O teste move para a esquerda por apenas 0,3 segundo e envia STOP.
+5. Se o modelo usar códigos diferentes, ajuste `ptzCodes` no `config.json` sem alterar o programa.
 
-O driver usa o padrão CGI `/cgi-bin/ptz.cgi`, autenticação Digest e os códigos `Up`, `Down`, `Left` e `Right`. Confirme a compatibilidade com o modelo/firmware antes do uso em campo.
+O driver usa o padrão CGI `/cgi-bin/ptz.cgi`, autenticação Digest e os códigos `Up`, `Down`, `Left` e `Right`. O comando recebido para `CAM01` nunca é enviado a outra câmera: o Agent seleciona o equipamento pelo ID lógico.
 
 ## Backend local legado
 

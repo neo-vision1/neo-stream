@@ -3,32 +3,56 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Neo Vision — Controle PTZ</title>
+  <title>Neo Vision — Monitoramento e PTZ</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <main class="card">
-    <header><div class="brand">NEO <span>VISION</span></div><div class="subtitle">CONTROLE REMOTO PTZ</div></header>
-    <section class="settings">
-      <label>Local<input id="site" value="OBRA_001" autocomplete="off"></label>
-      <label>Câmera<input id="camera" value="CAM01" autocomplete="off"></label>
-      <label>Chave do operador<input id="key" type="password" placeholder="Informe a chave"></label>
-      <button id="connect">Conectar</button>
+  <main class="shell">
+    <header class="topbar">
+      <div><div class="brand">NEO <span>VISION</span></div><div class="subtitle">MONITORAMENTO AO VIVO E CONTROLE PTZ</div></div>
+      <div class="connection">
+        <label>Local<input id="site" value="OBRA_001" autocomplete="off"></label>
+        <label>Chave do operador<input id="key" type="password" placeholder="Informe a chave"></label>
+        <button id="connect">Conectar</button>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <aside class="camera-panel">
+        <div class="panel-title"><span>Câmeras</span><small>11 equipamentos</small></div>
+        <div id="cameraList" class="camera-list"></div>
+      </aside>
+
+      <section class="viewer-card">
+        <div class="viewer-head">
+          <div><small>TRANSMISSÃO MUX</small><h1 id="cameraName">Câmera 01</h1></div>
+          <span id="cameraIdBadge" class="badge">CAM01</span>
+        </div>
+        <div class="player-wrap">
+          <iframe id="muxPlayer" title="Vídeo ao vivo" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+          <div id="videoEmpty" class="video-empty"><strong>Vídeo ainda não configurado</strong><span>Adicione o Playback ID do Mux para esta câmera.</span></div>
+        </div>
+        <p id="message" role="status">Informe a chave e conecte.</p>
+      </section>
+
+      <aside class="control-card">
+        <div class="status">
+          <div><span id="agentDot" class="dot"></span><small>AGENT</small><strong id="agentStatus">DESCONECTADO</strong></div>
+          <div><span id="cameraDot" class="dot"></span><small>CÂMERA</small><strong id="cameraStatus">DESCONHECIDA</strong></div>
+        </div>
+        <div class="control-title"><small>CONTROLE</small><strong>Movimento PTZ</strong></div>
+        <section class="pad" aria-label="Controles PTZ">
+          <button class="move up" data-direction="up" aria-label="Mover para cima">↑</button>
+          <button class="move left" data-direction="left" aria-label="Mover para esquerda">←</button>
+          <button id="stop" class="stop" aria-label="Parar">STOP</button>
+          <button class="move right" data-direction="right" aria-label="Mover para direita">→</button>
+          <button class="move down" data-direction="down" aria-label="Mover para baixo">↓</button>
+        </section>
+        <p class="hint">Mantenha uma seta pressionada e solte para parar.</p>
+      </aside>
     </section>
-    <section class="status">
-      <div><span id="agentDot" class="dot"></span><small>AGENT</small><strong id="agentStatus">DESCONECTADO</strong></div>
-      <div><span id="cameraDot" class="dot"></span><small>CÂMERA</small><strong id="cameraStatus">DESCONHECIDA</strong></div>
-    </section>
-    <section class="pad" aria-label="Controles PTZ">
-      <button class="move up" data-direction="up" aria-label="Mover para cima">↑</button>
-      <button class="move left" data-direction="left" aria-label="Mover para esquerda">←</button>
-      <button id="stop" class="stop" aria-label="Parar">STOP</button>
-      <button class="move right" data-direction="right" aria-label="Mover para direita">→</button>
-      <button class="move down" data-direction="down" aria-label="Mover para baixo">↓</button>
-    </section>
-    <p id="message" role="status">Informe a chave e conecte.</p>
-    <footer>O movimento para automaticamente ao soltar o botão.</footer>
   </main>
+  <script src="/cameras.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

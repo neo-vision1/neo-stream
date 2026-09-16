@@ -1,10 +1,16 @@
 const elements = {
-  site: document.querySelector("#site"), camera: document.querySelector("#camera"), key: document.querySelector("#key"),
-  connect: document.querySelector("#connect"), message: document.querySelector("#message"),
+  site: document.querySelector("#site"), key: document.querySelector("#key"), connect: document.querySelector("#connect"),
+  message: document.querySelector("#message"), cameraList: document.querySelector("#cameraList"),
+  cameraName: document.querySelector("#cameraName"), cameraIdBadge: document.querySelector("#cameraIdBadge"),
+  muxPlayer: document.querySelector("#muxPlayer"), videoEmpty: document.querySelector("#videoEmpty"),
   agentDot: document.querySelector("#agentDot"), cameraDot: document.querySelector("#cameraDot"),
   agentStatus: document.querySelector("#agentStatus"), cameraStatus: document.querySelector("#cameraStatus")
 };
+const cameras = Array.isArray(window.NEO_VISION_CAMERAS) ? window.NEO_VISION_CAMERAS : [];
 const controls = [...document.querySelectorAll(".pad button")];
+let selectedCameraId = cameras[0]?.id || "CAM01";
+let cameraStatuses = {};
+let agentOnline = false;
 let socket = null;
 let authenticated = false;
 let reconnectTimer = null;
@@ -12,16 +18,58 @@ let shouldReconnect = false;
 let activeDirection = null;
 let connectionGeneration = 0;
 
+function selectedCamera() { return cameras.find((camera) => camera.id === selectedCameraId); }
 function setControls(enabled) { controls.forEach((button) => { button.disabled = !enabled; }); }
 function setDot(dot, online) { dot.className = `dot ${online ? "online" : "offline"}`; }
 function message(text) { elements.message.textContent = text; }
 
-function showStatus(status) {
-  setDot(elements.agentDot, status.agentOnline);
-  setDot(elements.cameraDot, status.cameraOnline);
-  elements.agentStatus.textContent = status.agentOnline ? "ONLINE" : "OFFLINE";
-  elements.cameraStatus.textContent = status.cameraOnline ? "ONLINE" : "OFFLINE";
-  setControls(Boolean(status.agentOnline && status.cameraOnline && authenticated));
+function selectCamera(cameraId) {
+  selectedCameraId = cameraId;
+  const camera = selectedCamera();
+  elements.cameraName.textContent = camera?.name || cameraId;
+  elements.cameraIdBadge.textContent = cameraId;
+  document.querySelectorAll(".camera-item").forEach((button) => button.classList.toggle("selected", button.dataset.cameraId === cameraId));
+
+  if (camera?.playbackId) {
+    const title = encodeURIComponent(camera.name || camera.id);
+    elements.muxPlayer.src = `https://player.mux.com/${encodeURIComponent(camera.playbackId)}?stream-type=live&metadata-video-title=${title}`;
+    elements.muxPlayer.hidden = false;
+    elements.videoEmpty.hidden = true;
+  } else {
+    elements.muxPlayer.removeAttribute("src");
+    elements.muxPlayer.hidden = true;
+    elements.videoEmpty.hidden = false;
+  }
+  showStatus();
+}
+
+function renderCameraList() {
+  elements.cameraList.replaceChildren(...cameras.map((camera) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "camera-item";
+    button.dataset.cameraId = camera.id;
+    button.innerHTML = `<span class="camera-number">${camera.id.replace("CAM", "")}</span><span><strong>${camera.name}</strong><small>${camera.id}</small></span><i class="mini-dot"></i>`;
+    button.addEventListener("click", () => selectCamera(camera.id));
+    return button;
+  }));
+}
+
+function showStatus(status = null) {
+  if (status) {
+    agentOnline = Boolean(status.agentOnline);
+    cameraStatuses = Object.fromEntries((status.cameras || []).map((camera) => [camera.cameraId, Boolean(camera.cameraOnline)]));
+    if (!status.cameras && status.cameraId) cameraStatuses[status.cameraId] = Boolean(status.cameraOnline);
+  }
+  const cameraOnline = Boolean(cameraStatuses[selectedCameraId]);
+  setDot(elements.agentDot, agentOnline);
+  setDot(elements.cameraDot, cameraOnline);
+  elements.agentStatus.textContent = agentOnline ? "ONLINE" : "OFFLINE";
+  elements.cameraStatus.textContent = cameraOnline ? "ONLINE" : "OFFLINE";
+  document.querySelectorAll(".camera-item").forEach((button) => {
+    button.querySelector(".mini-dot").className = `mini-dot ${cameraStatuses[button.dataset.cameraId] ? "online" : "offline"}`;
+  });
+  setControls(Boolean(agentOnline && cameraOnline && authenticated));
 }
 
 function send(payload) {
@@ -36,7 +84,7 @@ function send(payload) {
 function stop() {
   document.querySelectorAll(".move.active").forEach((button) => button.classList.remove("active"));
   activeDirection = null;
-  send({ type: "ptz", cameraId: elements.camera.value.trim(), command: "stop" });
+  send({ type: "ptz", cameraId: selectedCameraId, command: "stop" });
 }
 
 function connect() {
@@ -56,9 +104,7 @@ function connect() {
   message("Conectando ao Cloudflare…");
   setControls(false);
 
-  socket.addEventListener("open", () => {
-    socket.send(JSON.stringify({ type: "auth", role: "operator", siteId, token }));
-  });
+  socket.addEventListener("open", () => socket.send(JSON.stringify({ type: "auth", role: "operator", siteId, token })));
   socket.addEventListener("message", (event) => {
     let data;
     try { data = JSON.parse(event.data); } catch { return; }
@@ -69,7 +115,7 @@ function connect() {
     } else if (data.type === "status") {
       showStatus(data);
     } else if (data.type === "command_result") {
-      message(data.ok ? "Comando executado." : `Falha na câmera: ${data.error}`);
+      message(data.ok ? `${data.cameraId || selectedCameraId}: comando executado.` : `Falha em ${data.cameraId || selectedCameraId}: ${data.error}`);
     } else if (data.type === "error") {
       const errors = { unauthorized: "Chave incorreta.", agent_offline: "Agent do notebook está offline.", invalid_ptz_command: "Comando PTZ inválido." };
       message(errors[data.error] || `Erro: ${data.error}`);
@@ -78,7 +124,9 @@ function connect() {
   socket.addEventListener("close", () => {
     if (generation !== connectionGeneration) return;
     authenticated = false;
-    showStatus({ agentOnline: false, cameraOnline: false });
+    agentOnline = false;
+    cameraStatuses = {};
+    showStatus();
     if (shouldReconnect) {
       message("Conexão perdida. Tentando novamente…");
       reconnectTimer = setTimeout(connect, 3000);
@@ -95,7 +143,7 @@ document.querySelectorAll(".move").forEach((button) => {
     button.setPointerCapture(event.pointerId);
     activeDirection = button.dataset.direction;
     button.classList.add("active");
-    send({ type: "ptz", cameraId: elements.camera.value.trim(), command: "move", direction: activeDirection, speed: 4 });
+    send({ type: "ptz", cameraId: selectedCameraId, command: "move", direction: activeDirection, speed: 4 });
   });
   ["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => button.addEventListener(name, () => {
     if (activeDirection === button.dataset.direction) stop();
@@ -103,4 +151,7 @@ document.querySelectorAll(".move").forEach((button) => {
 });
 document.querySelector("#stop").addEventListener("click", stop);
 window.addEventListener("blur", () => { if (activeDirection) stop(); });
+
+renderCameraList();
+selectCamera(selectedCameraId);
 setControls(false);

@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { parseMessage, validIdentifier, validatePtz } from "./protocol.js";
+import { heartbeatCameras, parseMessage, validIdentifier, validatePtz } from "./protocol.js";
 
 const HEARTBEAT_MAX_AGE_MS = 30_000;
 
@@ -69,12 +69,19 @@ export class CameraSite extends DurableObject {
     const state = (await this.ctx.storage.get("status")) || {};
     const agentConnected = this.connections("agent", excludedSocket).length > 0;
     const heartbeatFresh = Date.now() - Number(state.lastHeartbeat || 0) <= HEARTBEAT_MAX_AGE_MS;
+    const agentOnline = agentConnected && heartbeatFresh;
+    const storedCameras = state.cameras || (state.cameraId ? { [state.cameraId]: Boolean(state.cameraOnline) } : {});
+    const cameras = Object.entries(storedCameras).map(([cameraId, cameraOnline]) => ({
+      cameraId,
+      cameraOnline: agentOnline && Boolean(cameraOnline)
+    }));
     return {
       type: "status",
       siteId,
-      agentOnline: agentConnected && heartbeatFresh,
-      cameraOnline: agentConnected && heartbeatFresh && Boolean(state.cameraOnline),
-      cameraId: state.cameraId || null,
+      agentOnline,
+      cameras,
+      cameraOnline: cameras.some((camera) => camera.cameraOnline),
+      cameraId: cameras[0]?.cameraId || null,
       lastHeartbeat: state.lastHeartbeat || null
     };
   }
@@ -128,8 +135,7 @@ export class CameraSite extends DurableObject {
 
     if (attachment.role === "agent" && message.type === "heartbeat") {
       const status = {
-        cameraId: validIdentifier(message.cameraId) ? message.cameraId : null,
-        cameraOnline: Boolean(message.cameraOnline),
+        cameras: heartbeatCameras(message),
         lastHeartbeat: Date.now()
       };
       await this.ctx.storage.put("status", status);
@@ -159,6 +165,7 @@ export class CameraSite extends DurableObject {
       this.broadcast("operator", {
         type: "command_result",
         commandId: message.commandId || null,
+        cameraId: validIdentifier(message.cameraId) ? message.cameraId : null,
         ok,
         error: ok ? null : String(message.error || "camera_error")
       });

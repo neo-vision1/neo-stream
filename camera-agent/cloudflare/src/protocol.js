@@ -29,3 +29,15 @@ export function validatePtz(message) {
     speed
   };
 }
+
+export function heartbeatCameras(message) {
+  const cameras = {};
+  if (Array.isArray(message?.cameras)) {
+    for (const camera of message.cameras) {
+      if (validIdentifier(camera?.cameraId)) cameras[camera.cameraId] = Boolean(camera.cameraOnline);
+    }
+  } else if (validIdentifier(message?.cameraId)) {
+    cameras[message.cameraId] = Boolean(message.cameraOnline);
+  }
+  return cameras;
+}
