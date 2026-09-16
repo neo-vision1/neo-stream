@@ -4,8 +4,10 @@ const elements = {
   cameraName: document.querySelector("#cameraName"), cameraIdBadge: document.querySelector("#cameraIdBadge"),
   muxPlayer: document.querySelector("#muxPlayer"), videoEmpty: document.querySelector("#videoEmpty"),
   agentDot: document.querySelector("#agentDot"), cameraDot: document.querySelector("#cameraDot"),
-  agentStatus: document.querySelector("#agentStatus"), cameraStatus: document.querySelector("#cameraStatus")
+  agentStatus: document.querySelector("#agentStatus"), cameraStatus: document.querySelector("#cameraStatus"),
+  listenToggle: document.querySelector("#listenToggle")
 };
+const t = (key) => window.NeoVisionUI.t(key);
 const cameras = Array.isArray(window.NEO_VISION_CAMERAS) ? window.NEO_VISION_CAMERAS : [];
 const controls = [...document.querySelectorAll(".pad button")];
 let selectedCameraId = cameras[0]?.id || "CAM01";
@@ -31,17 +33,17 @@ function selectCamera(cameraId) {
   }
   selectedCameraId = cameraId;
   const camera = selectedCamera();
-  elements.cameraName.textContent = camera?.name || cameraId;
+  elements.cameraName.textContent = camera ? `${t("cameraName")} ${camera.id.replace("CAM", "")}` : cameraId;
   elements.cameraIdBadge.textContent = cameraId;
   document.querySelectorAll(".camera-item").forEach((button) => button.classList.toggle("selected", button.dataset.cameraId === cameraId));
 
   if (camera?.playbackId) {
-    const title = encodeURIComponent(camera.name || camera.id);
-    elements.muxPlayer.src = `https://player.mux.com/${encodeURIComponent(camera.playbackId)}?stream-type=live&metadata-video-title=${title}`;
+    elements.muxPlayer.setAttribute("playback-id", camera.playbackId);
+    elements.muxPlayer.setAttribute("metadata-video-title", camera.name || camera.id);
     elements.muxPlayer.hidden = false;
     elements.videoEmpty.hidden = true;
   } else {
-    elements.muxPlayer.removeAttribute("src");
+    elements.muxPlayer.removeAttribute("playback-id");
     elements.muxPlayer.hidden = true;
     elements.videoEmpty.hidden = false;
   }
@@ -54,7 +56,7 @@ function renderCameraList() {
     button.type = "button";
     button.className = "camera-item";
     button.dataset.cameraId = camera.id;
-    button.innerHTML = `<span class="camera-number">${camera.id.replace("CAM", "")}</span><span><strong>${camera.name}</strong><small>${camera.id}</small></span><i class="mini-dot"></i>`;
+    button.innerHTML = `<span class="camera-number">${camera.id.replace("CAM", "")}</span><span><strong>${t("cameraName")} ${camera.id.replace("CAM", "")}</strong><small>${camera.id}</small></span><i class="mini-dot"></i>`;
     button.addEventListener("click", () => selectCamera(camera.id));
     return button;
   }));
@@ -79,7 +81,7 @@ function showStatus(status = null) {
 
 function send(payload) {
   if (!authenticated || socket?.readyState !== WebSocket.OPEN) {
-    message("Conexão indisponível.");
+    message(t("connectionUnavailable"));
     return false;
   }
   socket.send(JSON.stringify(payload));
@@ -97,7 +99,7 @@ async function connect() {
   const siteId = elements.site.value.trim();
   const accessToken = await window.NeoVisionAuth.getAccessToken();
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(siteId) || !accessToken) {
-    message("Sessão expirada. Entre novamente.");
+    message(t("sessionExpired"));
     return;
   }
   shouldReconnect = true;
@@ -106,7 +108,7 @@ async function connect() {
   socket?.close();
   const scheme = location.protocol === "https:" ? "wss" : "ws";
   socket = new WebSocket(`${scheme}://${location.host}/ws/${siteId}`);
-  message("Conectando ao Cloudflare…");
+  message(t("connecting"));
   setControls(false);
 
   socket.addEventListener("open", () => socket.send(JSON.stringify({ type: "auth", role: "operator", siteId, accessToken })));
@@ -115,14 +117,14 @@ async function connect() {
     try { data = JSON.parse(event.data); } catch { return; }
     if (data.type === "auth_ok") {
       authenticated = true;
-      message("Painel conectado.");
+      message(t("connected"));
     } else if (data.type === "status") {
       showStatus(data);
     } else if (data.type === "command_result") {
-      message(data.ok ? `${data.cameraId || selectedCameraId}: comando executado.` : `Falha em ${data.cameraId || selectedCameraId}: ${data.error}`);
+      message(data.ok ? `${data.cameraId || selectedCameraId}: ${t("commandDone")}` : `${t("failed")} ${data.cameraId || selectedCameraId}: ${data.error}`);
     } else if (data.type === "error") {
-      const errors = { unauthorized: "Sessão não autorizada.", agent_offline: "Agent do notebook está offline.", invalid_ptz_command: "Comando PTZ inválido." };
-      message(errors[data.error] || `Erro: ${data.error}`);
+      const errors = { unauthorized: t("unauthorized"), agent_offline: t("agentOffline"), invalid_ptz_command: t("invalidPtz") };
+      message(errors[data.error] || `${t("error")}: ${data.error}`);
     }
   });
   socket.addEventListener("close", () => {
@@ -132,12 +134,21 @@ async function connect() {
     cameraStatuses = {};
     showStatus();
     if (shouldReconnect) {
-      message("Conexão perdida. Tentando novamente…");
+      message(t("connectionLost"));
       reconnectTimer = setTimeout(connect, 3000);
     }
   });
-  socket.addEventListener("error", () => message("Não foi possível conectar."));
+  socket.addEventListener("error", () => message(t("cannotConnect")));
 }
+
+elements.listenToggle.addEventListener("click", async () => {
+  const muted = !elements.muxPlayer.muted;
+  elements.muxPlayer.muted = muted;
+  elements.listenToggle.querySelector("[aria-hidden]").textContent = muted ? "🔇" : "🔊";
+  elements.listenToggle.querySelector("[data-i18n]").dataset.i18n = muted ? "listen" : "mute";
+  elements.listenToggle.querySelector("[data-i18n]").textContent = t(muted ? "listen" : "mute");
+  if (!muted) try { await elements.muxPlayer.play(); } catch { message(t("audioUnavailable")); }
+});
 
 elements.connect.addEventListener("click", connect);
 document.querySelectorAll(".move").forEach((button) => {
@@ -172,3 +183,4 @@ window.NeoVisionAuth.onChange((session) => {
 renderCameraList();
 selectCamera(selectedCameraId);
 setControls(false);
+window.addEventListener("neo-language-change", () => { renderCameraList(); selectCamera(selectedCameraId); });

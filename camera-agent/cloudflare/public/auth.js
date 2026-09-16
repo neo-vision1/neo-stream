@@ -1,4 +1,5 @@
 (() => {
+  const t = (key) => window.NeoVisionUI.t(key);
   const loginView = document.querySelector("#loginView");
   const appShell = document.querySelector("#appShell");
   const form = document.querySelector("#loginForm");
@@ -17,7 +18,7 @@
     const signedIn = Boolean(currentSession?.access_token);
     loginView.hidden = signedIn;
     appShell.hidden = !signedIn;
-    accountEmail.textContent = currentSession?.user?.email || "Usuário autorizado";
+    accountEmail.textContent = currentSession?.user?.email || t("authorizedUser");
     listeners.forEach((listener) => listener(currentSession));
   }
 
@@ -29,10 +30,10 @@
   async function initialize() {
     try {
       const response = await fetch("/auth-config", { cache: "no-store" });
-      if (!response.ok) throw new Error("Configuração do Supabase não encontrada.");
+      if (!response.ok) throw new Error(t("configMissing"));
       const config = await response.json();
       if (!config.supabaseUrl || !config.supabaseAnonKey || !window.supabase?.createClient) {
-        throw new Error("A autenticação ainda não foi configurada.");
+        throw new Error(t("authNotConfigured"));
       }
       client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
@@ -44,7 +45,7 @@
       return data.session;
     } catch (error) {
       showSession(null);
-      setLoginMessage(error.message || "Não foi possível iniciar o login.", true);
+      setLoginMessage(error.message || t("loginStartError"), true);
       button.disabled = true;
       return null;
     }
@@ -54,7 +55,7 @@
     event.preventDefault();
     if (!client) return;
     button.disabled = true;
-    setLoginMessage("Entrando…");
+    setLoginMessage(t("signingIn"));
     const { data, error } = await client.auth.signInWithPassword({
       email: email.value.trim(),
       password: password.value
@@ -62,17 +63,17 @@
     password.value = "";
     button.disabled = false;
     if (error) {
-      setLoginMessage("E-mail ou senha incorretos.", true);
+      setLoginMessage(t("invalidCredentials"), true);
       return;
     }
-    setLoginMessage("Acesso autorizado.");
+    setLoginMessage(t("authorized"));
     showSession(data.session);
   });
 
   logout.addEventListener("click", async () => {
     if (client) await client.auth.signOut();
     showSession(null);
-    setLoginMessage("Sessão encerrada.");
+    setLoginMessage(t("signedOut"));
   });
 
   window.NeoVisionAuth = {
