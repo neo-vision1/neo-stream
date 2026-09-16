@@ -1,18 +1,14 @@
 $ErrorActionPreference = "Stop"
 
 $agentDir = Join-Path $env:LOCALAPPDATA "NeoVisionAgent"
-$documentsDir = [Environment]::GetFolderPath("MyDocuments")
-$projectDir = Join-Path $documentsDir "neo-stream-main\camera-agent"
-$cloudflareDir = Join-Path $projectDir "cloudflare"
+$cloudflareDir = Join-Path $env:LOCALAPPDATA "NeoVisionCloudflareDeploy"
 $configPath = Join-Path $agentDir "config.json"
 $rawBase = "https://raw.githubusercontent.com/neo-vision1/neo-stream/main/camera-agent"
 
 if (-not (Test-Path $configPath)) {
     throw "config.json não encontrado em $configPath"
 }
-if (-not (Test-Path $cloudflareDir)) {
-    throw "Pasta Cloudflare não encontrada em $cloudflareDir"
-}
+New-Item -ItemType Directory -Force -Path $cloudflareDir | Out-Null
 
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $backupPath = Join-Path $agentDir "config.backup-$timestamp.json"
@@ -69,6 +65,9 @@ foreach ($file in $agentFiles) {
 }
 
 $cloudflareFiles = @(
+    "package.json",
+    "package-lock.json",
+    "wrangler.jsonc",
     "src/index.js",
     "src/protocol.js",
     "public/index.html",
@@ -85,6 +84,8 @@ foreach ($file in $cloudflareFiles) {
 
 Push-Location $cloudflareDir
 try {
+    npm install
+    if ($LASTEXITCODE -ne 0) { throw "A instalação das dependências do Cloudflare falhou." }
     npx wrangler deploy
     if ($LASTEXITCODE -ne 0) { throw "A publicação do Cloudflare falhou." }
 } finally {
