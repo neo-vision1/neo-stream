@@ -6,6 +6,7 @@ from pathlib import Path
 
 import websockets
 from intelbras_camera import IntelbrasCamera
+from media_relay import MediaRelaySupervisor
 
 
 def app_dir():
@@ -19,6 +20,17 @@ def load_config():
     # utf-8-sig also accepts config files saved by Windows PowerShell with BOM.
     with path.open(encoding="utf-8-sig") as file:
         return json.load(file)
+
+
+def load_mux_keys():
+    path = app_dir() / "mux_keys.json"
+    if not path.exists():
+        return {}
+    with path.open(encoding="utf-8-sig") as file:
+        keys = json.load(file)
+    if not isinstance(keys, dict):
+        raise ValueError("mux_keys.json precisa conter um objeto")
+    return {str(camera_id): str(key) for camera_id, key in keys.items() if key}
 
 
 def camera_configs(config):
@@ -110,22 +122,28 @@ async def run_session(config, cameras):
 async def main():
     setup_logging()
     config = load_config()
+    configs = camera_configs(config)
     cameras = {
         camera_config["id"]: IntelbrasCamera(camera_config, config.get("movementTimeoutSeconds", 2))
-        for camera_config in camera_configs(config)
+        for camera_config in configs
     }
+    relay = MediaRelaySupervisor(configs, load_mux_keys(), app_dir() / "logs", config.get("ffmpegPath", "ffmpeg"))
+    await relay.start()
     delays = [2, 5, 10, 30]
     attempt = 0
     logging.info("Agent iniciado com %s câmera(s): %s", len(cameras), ", ".join(cameras))
-    while True:
-        try:
-            await run_session(config, cameras)
-            attempt = 0
-        except Exception as exc:
-            delay = delays[min(attempt, len(delays) - 1)]
-            attempt += 1
-            logging.warning("Conexão indisponível: %s. Nova tentativa em %ss", exc, delay)
-            await asyncio.sleep(delay)
+    try:
+        while True:
+            try:
+                await run_session(config, cameras)
+                attempt = 0
+            except Exception as exc:
+                delay = delays[min(attempt, len(delays) - 1)]
+                attempt += 1
+                logging.warning("Conexão indisponível: %s. Nova tentativa em %ss", exc, delay)
+                await asyncio.sleep(delay)
+    finally:
+        await relay.stop()
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $agentDir = Join-Path $env:LOCALAPPDATA "NeoVisionAgent"
 $cloudflareDir = Join-Path $env:LOCALAPPDATA "NeoVisionCloudflareDeployV2"
 $configPath = Join-Path $agentDir "config.json"
-$rawBase = "https://raw.githubusercontent.com/neo-vision1/neo-stream/22e45e7cb71d0c9f7dfa1e6bb5c6fa3147abb03a/camera-agent"
+$rawBase = "https://raw.githubusercontent.com/neo-vision1/neo-stream/main/camera-agent"
 
 if (-not (Test-Path $configPath)) {
     throw "config.json não encontrado em $configPath"
@@ -61,7 +61,7 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $json = $newConfig | ConvertTo-Json -Depth 10
 [System.IO.File]::WriteAllText($configPath, $json, $utf8NoBom)
 
-$agentFiles = @("agent.py", "intelbras_camera.py", "test_camera.py")
+$agentFiles = @("agent.py", "intelbras_camera.py", "media_relay.py", "test_camera.py")
 foreach ($file in $agentFiles) {
     $destination = Join-Path $agentDir $file
     & curl.exe -L "$rawBase/agent/$file" -o $destination
@@ -79,7 +79,9 @@ $cloudflareFiles = @(
     "public/auth.js",
     "public/app.js",
     "public/style.css",
-    "public/cameras.js"
+    "public/cameras.js",
+    "public/ui.js",
+    "public/logo-neo-vision.png"
 )
 foreach ($file in $cloudflareFiles) {
     $destination = Join-Path $cloudflareDir $file

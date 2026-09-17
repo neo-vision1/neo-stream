@@ -113,6 +113,20 @@ Unregister-ScheduledTask -TaskName "NeoVisionCameraAgent" -Confirm:$false
 
 O driver usa o padrão CGI `/cgi-bin/ptz.cgi`, autenticação Digest e os códigos `Up`, `Down`, `Left` e `Right`. O comando recebido para `CAM01` nunca é enviado a outra câmera: o Agent seleciona o equipamento pelo ID lógico.
 
+## Áudio no Mux via notebook
+
+A VIP 1300 MINI SD envia vídeo no RTMP nativo, mas o firmware testado não inclui
+a faixa de áudio nessa saída. O Agent pode iniciar um relay FFmpeg usando o
+Stream Extra por RTSP: o vídeo H.264 é copiado sem recodificação e somente o
+áudio G.711A é convertido para AAC.
+
+Execute `configure_audio_relay.ps1 -CameraId CAM01` no notebook e informe a
+Stream Key apenas no prompt protegido. As chaves são armazenadas localmente em
+`%LOCALAPPDATA%\NeoVisionAgent\mux_keys.json` e nunca devem ser enviadas ao
+GitHub. O relay reinicia automaticamente após quedas e grava seu diagnóstico em
+`logs\relay-CAM01.log`. Mantenha o RTMP nativo desativado nas câmeras que
+usarem o relay para não haver dois transmissores com a mesma Stream Key.
+
 ## Backend local legado
 
 A pasta `backend/` mantém o protótipo Node.js apenas para testes locais. A implantação de produção usa `cloudflare/`; não é necessário manter uma VM ligada.
