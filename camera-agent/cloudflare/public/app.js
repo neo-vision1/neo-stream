@@ -152,16 +152,14 @@ elements.listenToggle.addEventListener("click", async () => {
   if (!muted) try { await elements.muxPlayer.play(); } catch { message(t("audioUnavailable")); }
 });
 
-const savedVolume = Math.min(100, Math.max(0, Number(localStorage.getItem("neoVisionVolume") ?? 100)));
-elements.volumeControl.value = String(savedVolume);
-elements.volumeValue.textContent = `${savedVolume}%`;
-elements.muxPlayer.volume = savedVolume / 100;
 elements.volumeControl.addEventListener("input", async () => {
   const volume = Number(elements.volumeControl.value);
   elements.volumeValue.textContent = `${volume}%`;
-  elements.muxPlayer.volume = volume / 100;
-  elements.muxPlayer.muted = volume === 0;
-  localStorage.setItem("neoVisionVolume", String(volume));
+  try {
+    elements.muxPlayer.volume = volume / 100;
+    elements.muxPlayer.muted = volume === 0;
+    localStorage.setItem("neoVisionVolume", String(volume));
+  } catch { return; }
   const muted = elements.muxPlayer.muted;
   elements.listenToggle.querySelector("[aria-hidden]").textContent = muted ? "🔇" : "🔊";
   elements.listenToggle.querySelector("[data-i18n]").dataset.i18n = muted ? "listen" : "mute";
@@ -202,4 +200,13 @@ window.NeoVisionAuth.onChange((session) => {
 renderCameraList();
 selectCamera(selectedCameraId);
 setControls(false);
+try {
+  const savedVolume = Math.min(100, Math.max(0, Number(localStorage.getItem("neoVisionVolume") ?? 100)));
+  elements.volumeControl.value = String(savedVolume);
+  elements.volumeValue.textContent = `${savedVolume}%`;
+  elements.muxPlayer.volume = savedVolume / 100;
+} catch {
+  elements.volumeControl.value = "100";
+  elements.volumeValue.textContent = "100%";
+}
 window.addEventListener("neo-language-change", () => { renderCameraList(); selectCamera(selectedCameraId); });
