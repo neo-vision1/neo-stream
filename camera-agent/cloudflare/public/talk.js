@@ -11,6 +11,7 @@
   let ready = false;
   let enabled = false;
   let safetyTimer = null;
+  let wantsToTalk = false;
 
   function pcmBase64(floatSamples, inputRate) {
     const ratio = inputRate / 8000;
@@ -31,6 +32,7 @@
   }
 
   async function cleanup(notify = true) {
+    wantsToTalk = false;
     clearTimeout(safetyTimer);
     const endingId = talkId;
     const cameraId = getCameraId?.();
@@ -51,9 +53,16 @@
   async function start(event) {
     event.preventDefault();
     if (!enabled || talkId) return;
+    wantsToTalk = true;
+    try { button.setPointerCapture(event.pointerId); } catch { /* Pointer may already be released. */ }
     const cameraId = getCameraId();
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+      if (!wantsToTalk) {
+        stream.getTracks().forEach((track) => track.stop());
+        stream = null;
+        return;
+      }
       context = new AudioContext({ latencyHint: "interactive" });
       source = context.createMediaStreamSource(stream);
       processor = context.createScriptProcessor(4096, 1, 1);
