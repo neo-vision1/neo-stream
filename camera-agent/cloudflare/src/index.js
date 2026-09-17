@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { heartbeatCameras, parseMessage, validIdentifier, validatePtz } from "./protocol.js";
+import { heartbeatCameras, parseMessage, validIdentifier, validatePtz, validateTalk } from "./protocol.js";
 import { supabaseConfigured, verifySupabaseUser } from "./auth.js";
 
 const HEARTBEAT_MAX_AGE_MS = 30_000;
@@ -168,6 +168,21 @@ export class CameraSite extends DurableObject {
       return;
     }
 
+    if (attachment.role === "operator" && message.type?.startsWith("talk_")) {
+      const command = validateTalk(message);
+      if (!command) {
+        send(ws, { type: "error", error: "invalid_talk_command" });
+        return;
+      }
+      const agents = this.connections("agent");
+      if (agents.length === 0) {
+        send(ws, { type: "error", error: "agent_offline" });
+        return;
+      }
+      for (const agent of agents) send(agent, command);
+      return;
+    }
+
     if (attachment.role === "agent" && message.type === "command_result") {
       const ok = Boolean(message.ok ?? message.success);
       this.broadcast("operator", {
@@ -176,6 +191,18 @@ export class CameraSite extends DurableObject {
         cameraId: validIdentifier(message.cameraId) ? message.cameraId : null,
         ok,
         error: ok ? null : String(message.error || "camera_error")
+      });
+      return;
+    }
+
+    if (attachment.role === "agent" && message.type === "talk_result") {
+      this.broadcast("operator", {
+        type: "talk_result",
+        cameraId: validIdentifier(message.cameraId) ? message.cameraId : null,
+        talkId: validIdentifier(message.talkId) ? message.talkId : null,
+        action: ["started", "stopped"].includes(message.action) ? message.action : "error",
+        ok: Boolean(message.ok),
+        error: message.ok ? null : String(message.error || "talk_error").slice(0, 200)
       });
       return;
     }
