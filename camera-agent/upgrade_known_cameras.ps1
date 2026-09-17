@@ -46,14 +46,14 @@ $newConfig = [ordered]@{
     cameras = @(
         [ordered]@{ id = "CAM01"; name = "Câmera 01"; ip = "192.168.1.17" }
         [ordered]@{ id = "CAM02"; name = "Câmera 02"; ip = "192.168.1.18" }
-        [ordered]@{ id = "CAM03"; name = "Câmera 03"; ip = "192.168.15.16" }
-        [ordered]@{ id = "CAM04"; name = "Câmera 04"; ip = "192.168.15.19" }
-        [ordered]@{ id = "CAM05"; name = "Câmera 05"; ip = "192.168.15.2" }
-        [ordered]@{ id = "CAM06"; name = "Câmera 06"; ip = "192.168.15.15" }
-        [ordered]@{ id = "CAM07"; name = "Câmera 07"; ip = "192.168.15.13" }
-        [ordered]@{ id = "CAM08"; name = "Câmera 08"; ip = "192.168.15.12" }
-        [ordered]@{ id = "CAM09"; name = "Câmera 09"; ip = "192.168.15.20" }
-        [ordered]@{ id = "CAM10"; name = "Câmera 10"; ip = "192.168.15.7" }
+        [ordered]@{ id = "CAM03"; name = "Câmera 03"; ip = "192.168.1.16" }
+        [ordered]@{ id = "CAM04"; name = "Câmera 04"; ip = "192.168.1.19" }
+        [ordered]@{ id = "CAM05"; name = "Câmera 05"; ip = "192.168.1.2" }
+        [ordered]@{ id = "CAM06"; name = "Câmera 06"; ip = "192.168.1.21" }
+        [ordered]@{ id = "CAM07"; name = "Câmera 07"; ip = "192.168.1.13" }
+        [ordered]@{ id = "CAM08"; name = "Câmera 08"; ip = "192.168.1.12" }
+        [ordered]@{ id = "CAM09"; name = "Câmera 09"; ip = "192.168.1.22" }
+        [ordered]@{ id = "CAM10"; name = "Câmera 10"; ip = "192.168.1.14" }
     )
 }
 
