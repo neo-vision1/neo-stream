@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { heartbeatCameras, parseMessage, validIdentifier, validatePtz } from "../src/protocol.js";
+import { heartbeatCameras, parseMessage, validIdentifier, validatePtz, validateTalk } from "../src/protocol.js";
 
 test("parses only JSON objects", () => {
   assert.deepEqual(parseMessage('{"type":"auth"}'), { type: "auth" });
@@ -27,6 +27,17 @@ test("rejects unsafe PTZ commands", () => {
   assert.equal(validatePtz({ type: "ptz", cameraId: "CAM01", command: "move", direction: "zoom" }), null);
   assert.equal(validatePtz({ type: "ptz", cameraId: "CAM01", command: "move", direction: "up", speed: 99 }), null);
   assert.equal(validatePtz({ type: "ptz", cameraId: "../x", command: "stop" }), null);
+});
+
+test("validates bounded talk messages", () => {
+  assert.deepEqual(validateTalk({ type: "talk_start", cameraId: "CAM01", talkId: "abc-123" }), {
+    type: "talk_start", cameraId: "CAM01", talkId: "abc-123"
+  });
+  assert.deepEqual(validateTalk({ type: "talk_audio", cameraId: "CAM01", talkId: "abc-123", audio: "AAE=" }), {
+    type: "talk_audio", cameraId: "CAM01", talkId: "abc-123", audio: "AAE="
+  });
+  assert.equal(validateTalk({ type: "talk_audio", cameraId: "CAM01", talkId: "abc", audio: "!" }), null);
+  assert.equal(validateTalk({ type: "talk_stop", cameraId: "../x", talkId: "abc" }), null);
 });
 
 test("normalizes multi-camera heartbeat", () => {
