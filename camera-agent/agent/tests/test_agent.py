@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from agent import camera_configs
+from agent import TalkController, camera_configs
 
 
 class AgentConfigTests(unittest.TestCase):
@@ -26,6 +26,14 @@ class AgentConfigTests(unittest.TestCase):
     def test_rejects_duplicate_camera_ids(self):
         with self.assertRaisesRegex(ValueError, "não podem se repetir"):
             camera_configs({"cameras": [{"id": "CAM01"}, {"id": "CAM01"}]})
+
+    def test_talk_controller_starts_empty(self):
+        controller = TalkController({"CAM01": {"id": "CAM01"}})
+        try:
+            self.assertIsNone(controller.session)
+            self.assertIsNone(controller.talk_id)
+        finally:
+            controller.executor.shutdown(wait=False, cancel_futures=True)
 
 
 if __name__ == "__main__":
