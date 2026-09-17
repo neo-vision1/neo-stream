@@ -9,6 +9,15 @@ class TalkError(RuntimeError):
     pass
 
 
+class AudioFormat(ctypes.Structure):
+    _fields_ = [
+        ("byFormatTag", ctypes.c_ubyte),
+        ("nChannels", ctypes.c_ushort),
+        ("wBitsPerSample", ctypes.c_ushort),
+        ("nSamplesPerSec", ctypes.c_uint),
+    ]
+
+
 class DahuaTalkSession:
     DEFAULT_SDK_DIR = Path(r"C:\Program Files\Intelbras\SIMNext\SIM Next")
 
@@ -20,6 +29,7 @@ class DahuaTalkSession:
         self.talk_handle = 0
         self.recording = False
         self.initialized = False
+        self.encoder_initialized = False
         self._disconnect_callback = None
         self._audio_callback = None
 
@@ -55,13 +65,22 @@ class DahuaTalkSession:
         self.sdk.CLIENT_RecordStart.restype = ctypes.c_int
         self.sdk.CLIENT_RecordStop.argtypes = []
         self.sdk.CLIENT_RecordStop.restype = ctypes.c_int
+        self.sdk.CLIENT_InitAudioEncode.argtypes = [AudioFormat]
+        self.sdk.CLIENT_InitAudioEncode.restype = ctypes.c_int
+        self.sdk.CLIENT_AudioEncode.argtypes = [
+            ctypes.c_longlong, ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint),
+            ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint),
+        ]
+        self.sdk.CLIENT_AudioEncode.restype = ctypes.c_int
+        self.sdk.CLIENT_ReleaseAudioEncode.argtypes = []
+        self.sdk.CLIENT_ReleaseAudioEncode.restype = ctypes.c_int
         self.sdk.CLIENT_StopTalkEx.argtypes = [ctypes.c_longlong]
         self.sdk.CLIENT_StopTalkEx.restype = ctypes.c_int
         self.sdk.CLIENT_Logout.argtypes = [ctypes.c_longlong]
         self.sdk.CLIENT_Logout.restype = ctypes.c_int
         self.sdk.CLIENT_Cleanup.argtypes = []
 
-    def start(self):
+    def start(self, capture_microphone=True):
         self._load()
         disconnect_type = ctypes.WINFUNCTYPE(
             None, ctypes.c_longlong, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p
@@ -100,9 +119,42 @@ class DahuaTalkSession:
         ))
         if not self.talk_handle:
             raise TalkError(f"A câmera recusou a conversação (erro {self._last_error()})")
-        if not self.sdk.CLIENT_RecordStart():
-            raise TalkError(f"Não foi possível abrir o microfone (erro {self._last_error()})")
-        self.recording = True
+        if capture_microphone:
+            if not self.sdk.CLIENT_RecordStart():
+                raise TalkError(f"Não foi possível abrir o microfone (erro {self._last_error()})")
+            self.recording = True
+
+    def enable_pcm_encoder(self):
+        audio_format = AudioFormat(0, 1, 16, 8000)
+        if self.sdk.CLIENT_InitAudioEncode(audio_format) != 0:
+            raise TalkError(f"Falha ao iniciar codificador PCM (erro {self._last_error()})")
+        self.encoder_initialized = True
+
+    def send_pcm(self, pcm):
+        if not self.talk_handle or not self.encoder_initialized:
+            raise TalkError("Conversação PCM não iniciada")
+        if not pcm or len(pcm) > 16_000:
+            raise TalkError("Bloco PCM vazio ou grande demais")
+        source = ctypes.create_string_buffer(pcm)
+        source_length = ctypes.c_uint(len(pcm))
+        output = ctypes.create_string_buffer(len(pcm) + 4096)
+        output_length = ctypes.c_uint(len(output))
+        result = self.sdk.CLIENT_AudioEncode(
+            self.login_handle,
+            source,
+            ctypes.byref(source_length),
+            output,
+            ctypes.byref(output_length),
+        )
+        if result != 0:
+            raise TalkError(f"Falha ao codificar PCM (erro {self._last_error()})")
+        if output_length.value:
+            sent = self.sdk.CLIENT_TalkSendData(
+                self.talk_handle, output, output_length.value
+            )
+            if sent <= 0:
+                raise TalkError(f"Falha ao enviar áudio (erro {self._last_error()})")
+        return output_length.value
 
     def stop(self):
         if not self.sdk:
@@ -110,6 +162,9 @@ class DahuaTalkSession:
         if self.recording:
             self.sdk.CLIENT_RecordStop()
             self.recording = False
+        if self.encoder_initialized:
+            self.sdk.CLIENT_ReleaseAudioEncode()
+            self.encoder_initialized = False
         if self.talk_handle:
             self.sdk.CLIENT_StopTalkEx(self.talk_handle)
             self.talk_handle = 0
