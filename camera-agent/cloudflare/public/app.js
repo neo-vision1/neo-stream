@@ -7,7 +7,7 @@ const elements = {
   agentStatus: document.querySelector("#agentStatus"), cameraStatus: document.querySelector("#cameraStatus"),
   listenToggle: document.querySelector("#listenToggle"),
   volumeControl: document.querySelector("#volumeControl"),
-  volumeValue: document.querySelector("#volumeValue")
+  volumeValue: document.querySelector("#volumeValue"), talkButton: document.querySelector("#talkButton")
 };
 const t = (key) => window.NeoVisionUI.t(key);
 const cameras = Array.isArray(window.NEO_VISION_CAMERAS) ? window.NEO_VISION_CAMERAS : [];
@@ -28,6 +28,7 @@ function setDot(dot, online) { dot.className = `dot ${online ? "online" : "offli
 function message(text) { elements.message.textContent = text; }
 
 function selectCamera(cameraId) {
+  if (selectedCameraId !== cameraId) window.NeoVisionTalk.stop();
   if (activeDirection && selectedCameraId !== cameraId) {
     send({ type: "ptz", cameraId: selectedCameraId, command: "stop" });
     document.querySelectorAll(".move.active").forEach((button) => button.classList.remove("active"));
@@ -79,6 +80,7 @@ function showStatus(status = null) {
     button.querySelector(".mini-dot").className = `mini-dot ${cameraStatuses[button.dataset.cameraId] ? "online" : "offline"}`;
   });
   setControls(Boolean(agentOnline && cameraOnline && authenticated));
+  window.NeoVisionTalk.setEnabled(Boolean(agentOnline && cameraOnline && authenticated));
 }
 
 function send(payload) {
@@ -124,14 +126,17 @@ async function connect() {
       showStatus(data);
     } else if (data.type === "command_result") {
       message(data.ok ? `${data.cameraId || selectedCameraId}: ${t("commandDone")}` : `${t("failed")} ${data.cameraId || selectedCameraId}: ${data.error}`);
+    } else if (window.NeoVisionTalk.handleMessage(data)) {
+      return;
     } else if (data.type === "error") {
-      const errors = { unauthorized: t("unauthorized"), agent_offline: t("agentOffline"), invalid_ptz_command: t("invalidPtz") };
+      const errors = { unauthorized: t("unauthorized"), agent_offline: t("agentOffline"), invalid_ptz_command: t("invalidPtz"), invalid_talk_command: t("invalidTalk") };
       message(errors[data.error] || `${t("error")}: ${data.error}`);
     }
   });
   socket.addEventListener("close", () => {
     if (generation !== connectionGeneration) return;
     authenticated = false;
+    window.NeoVisionTalk.stop();
     agentOnline = false;
     cameraStatuses = {};
     showStatus();
@@ -168,6 +173,9 @@ elements.volumeControl.addEventListener("input", async () => {
 });
 
 elements.connect.addEventListener("click", connect);
+window.NeoVisionTalk.init({ button: elements.talkButton, send, getCameraId: () => selectedCameraId });
+window.addEventListener("neo-talk-started", () => message(t("talking")));
+window.addEventListener("neo-talk-error", (event) => message(t(event.detail === "microphone_denied" ? "microphoneDenied" : "talkError")));
 document.querySelectorAll(".move").forEach((button) => {
   button.addEventListener("pointerdown", (event) => {
     event.preventDefault();
@@ -187,6 +195,7 @@ function resetConnection() {
   shouldReconnect = false;
   clearTimeout(reconnectTimer);
   socket?.close();
+  window.NeoVisionTalk.stop();
   authenticated = false;
   agentOnline = false;
   cameraStatuses = {};
