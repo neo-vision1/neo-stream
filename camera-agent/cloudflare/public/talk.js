@@ -48,6 +48,7 @@
     if (context) await context.close().catch(() => {});
     context = null;
     if (notify && endingId && cameraId) send({ type: "talk_stop", cameraId, talkId: endingId });
+    if (endingId) window.dispatchEvent(new CustomEvent("neo-talk-stopped"));
   }
 
   async function start(event) {
