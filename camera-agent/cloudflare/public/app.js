@@ -5,7 +5,9 @@ const elements = {
   muxPlayer: document.querySelector("#muxPlayer"), videoEmpty: document.querySelector("#videoEmpty"),
   agentDot: document.querySelector("#agentDot"), cameraDot: document.querySelector("#cameraDot"),
   agentStatus: document.querySelector("#agentStatus"), cameraStatus: document.querySelector("#cameraStatus"),
-  listenToggle: document.querySelector("#listenToggle")
+  listenToggle: document.querySelector("#listenToggle"),
+  volumeControl: document.querySelector("#volumeControl"),
+  volumeValue: document.querySelector("#volumeValue")
 };
 const t = (key) => window.NeoVisionUI.t(key);
 const cameras = Array.isArray(window.NEO_VISION_CAMERAS) ? window.NEO_VISION_CAMERAS : [];
@@ -144,6 +146,23 @@ async function connect() {
 elements.listenToggle.addEventListener("click", async () => {
   const muted = !elements.muxPlayer.muted;
   elements.muxPlayer.muted = muted;
+  elements.listenToggle.querySelector("[aria-hidden]").textContent = muted ? "🔇" : "🔊";
+  elements.listenToggle.querySelector("[data-i18n]").dataset.i18n = muted ? "listen" : "mute";
+  elements.listenToggle.querySelector("[data-i18n]").textContent = t(muted ? "listen" : "mute");
+  if (!muted) try { await elements.muxPlayer.play(); } catch { message(t("audioUnavailable")); }
+});
+
+const savedVolume = Math.min(100, Math.max(0, Number(localStorage.getItem("neoVisionVolume") ?? 100)));
+elements.volumeControl.value = String(savedVolume);
+elements.volumeValue.textContent = `${savedVolume}%`;
+elements.muxPlayer.volume = savedVolume / 100;
+elements.volumeControl.addEventListener("input", async () => {
+  const volume = Number(elements.volumeControl.value);
+  elements.volumeValue.textContent = `${volume}%`;
+  elements.muxPlayer.volume = volume / 100;
+  elements.muxPlayer.muted = volume === 0;
+  localStorage.setItem("neoVisionVolume", String(volume));
+  const muted = elements.muxPlayer.muted;
   elements.listenToggle.querySelector("[aria-hidden]").textContent = muted ? "🔇" : "🔊";
   elements.listenToggle.querySelector("[data-i18n]").dataset.i18n = muted ? "listen" : "mute";
   elements.listenToggle.querySelector("[data-i18n]").textContent = t(muted ? "listen" : "mute");

@@ -14,9 +14,9 @@ def ffmpeg_command(camera, stream_key, ffmpeg="ffmpeg", ingest_url="rtmp://globa
     destination = f"{ingest_url.rstrip('/')}/{stream_key}"
     return [
         ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "warning",
-        "-rtsp_transport", "tcp", "-rw_timeout", "10000000", "-i", source,
+        "-rtsp_transport", "tcp", "-i", source,
         "-map", "0:v:0", "-map", "0:a:0", "-c:v", "copy",
-        "-c:a", "aac", "-b:a", "64k", "-ar", "48000", "-ac", "1",
+        "-c:a", "aac", "-af", "volume=1.5", "-b:a", "64k", "-ar", "48000", "-ac", "1",
         "-f", "flv", destination,
     ]
 
