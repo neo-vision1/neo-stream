@@ -21,6 +21,7 @@ let reconnectTimer = null;
 let shouldReconnect = false;
 let activeDirection = null;
 let connectionGeneration = 0;
+let talkPreviousMuted = null;
 
 function selectedCamera() { return cameras.find((camera) => camera.id === selectedCameraId); }
 function setControls(enabled) { controls.forEach((button) => { button.disabled = !enabled; }); }
@@ -174,7 +175,16 @@ elements.volumeControl.addEventListener("input", async () => {
 
 elements.connect.addEventListener("click", connect);
 window.NeoVisionTalk.init({ button: elements.talkButton, send, getCameraId: () => selectedCameraId });
-window.addEventListener("neo-talk-started", () => message(t("talking")));
+window.addEventListener("neo-talk-started", () => {
+  talkPreviousMuted = elements.muxPlayer.muted;
+  elements.muxPlayer.muted = true;
+  message(t("talking"));
+});
+window.addEventListener("neo-talk-stopped", () => {
+  if (talkPreviousMuted !== null) elements.muxPlayer.muted = talkPreviousMuted;
+  talkPreviousMuted = null;
+  message(t("connected"));
+});
 window.addEventListener("neo-talk-error", (event) => message(t(event.detail === "microphone_denied" ? "microphoneDenied" : "talkError")));
 document.querySelectorAll(".move").forEach((button) => {
   button.addEventListener("pointerdown", (event) => {
