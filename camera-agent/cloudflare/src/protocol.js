@@ -30,6 +30,16 @@ export function validatePtz(message) {
   };
 }
 
+export function validateTalk(message) {
+  if (!message || !validIdentifier(message.cameraId) || !validIdentifier(message.talkId)) return null;
+  if (message.type === "talk_start" || message.type === "talk_stop") {
+    return { type: message.type, cameraId: message.cameraId, talkId: message.talkId };
+  }
+  if (message.type !== "talk_audio" || typeof message.audio !== "string") return null;
+  if (message.audio.length < 4 || message.audio.length > 24_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(message.audio)) return null;
+  return { type: "talk_audio", cameraId: message.cameraId, talkId: message.talkId, audio: message.audio };
+}
+
 export function heartbeatCameras(message) {
   const cameras = {};
   if (Array.isArray(message?.cameras)) {
