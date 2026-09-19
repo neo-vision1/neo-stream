@@ -18,6 +18,7 @@ class MediaRelayTests(unittest.TestCase):
         self.assertIn("1500k", command)
         self.assertIn("cfr", command)
         self.assertIn("aac", command)
+        self.assertIn("aresample=async=1:first_pts=0,asetpts=N/SR/TB,volume=1.5", command)
         self.assertEqual(command[-1], "rtmps://global-live.mux.com:443/app/secret-key")
 
     def test_accepts_camera_specific_relay_limits(self):
