@@ -117,8 +117,12 @@ O driver usa o padrão CGI `/cgi-bin/ptz.cgi`, autenticação Digest e os códig
 
 A VIP 1300 MINI SD envia vídeo no RTMP nativo, mas o firmware testado não inclui
 a faixa de áudio nessa saída. O Agent pode iniciar um relay FFmpeg usando o
-Stream Extra por RTSP: o vídeo H.264 é copiado sem recodificação e somente o
-áudio G.711A é convertido para AAC.
+Stream Extra por RTSP. Para tolerar timestamps incompletos da câmera e pequenas
+oscilações de conexões móveis ou Starlink, o relay gera novos timestamps,
+recodifica o vídeo em H.264 com fluxo controlado e envia ao Mux por RTMPS/443.
+O padrão de campo é 20 fps, 1.200 kbps, pico de 1.500 kbps e áudio AAC de
+64 kbps. Esses valores podem ser ajustados por câmera com `relayFps`,
+`relayVideoBitrateKbps` e `relayMaxBitrateKbps` no `config.json`.
 
 Execute `configure_audio_relay.ps1 -CameraId CAM01` no notebook e informe a
 Stream Key apenas no prompt protegido. As chaves são armazenadas localmente em
@@ -126,6 +130,12 @@ Stream Key apenas no prompt protegido. As chaves são armazenadas localmente em
 GitHub. O relay reinicia automaticamente após quedas e grava seu diagnóstico em
 `logs\relay-CAM01.log`. Mantenha o RTMP nativo desativado nas câmeras que
 usarem o relay para não haver dois transmissores com a mesma Stream Key.
+
+Cada Stream Key presente em `mux_keys.json` inicia um relay próprio. Durante a
+validação em campo, mantenha apenas a CAM01 configurada. Antes de habilitar as
+11 transmissões, implemente ativação sob demanda ou dimensione upload e CPU
+para a soma de todos os relays. O recurso de ouvir/falar é independente: apenas
+a câmera selecionada abre uma sessão NetSDK de retorno de áudio.
 
 ## Backend local legado
 
