@@ -4,19 +4,31 @@ from pathlib import Path
 from urllib.parse import quote
 
 
-def ffmpeg_command(camera, stream_key, ffmpeg="ffmpeg", ingest_url="rtmp://global-live.mux.com:5222/app"):
+def ffmpeg_command(camera, stream_key, ffmpeg="ffmpeg", ingest_url="rtmps://global-live.mux.com:443/app"):
     username = quote(str(camera["username"]), safe="")
     password = quote(str(camera["password"]), safe="")
     ip = camera["ip"]
     channel = int(camera.get("channel", 1))
     subtype = int(camera.get("relaySubtype", 1))
+    fps = int(camera.get("relayFps", 20))
+    video_bitrate = int(camera.get("relayVideoBitrateKbps", 1200))
+    max_bitrate = int(camera.get("relayMaxBitrateKbps", 1500))
+    gop = fps * 2
     source = f"rtsp://{username}:{password}@{ip}:554/cam/realmonitor?channel={channel}&subtype={subtype}"
     destination = f"{ingest_url.rstrip('/')}/{stream_key}"
     return [
         ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "warning",
-        "-rtsp_transport", "tcp", "-i", source,
-        "-map", "0:v:0", "-map", "0:a:0", "-c:v", "copy",
+        "-fflags", "+genpts+discardcorrupt",
+        "-use_wallclock_as_timestamps", "1",
+        "-rtsp_transport", "tcp", "-thread_queue_size", "512", "-i", source,
+        "-map", "0:v:0", "-map", "0:a:0",
+        "-c:v", "libx264", "-preset", "veryfast", "-tune", "zerolatency",
+        "-pix_fmt", "yuv420p", "-r", str(fps), "-fps_mode", "cfr",
+        "-b:v", f"{video_bitrate}k", "-maxrate", f"{max_bitrate}k",
+        "-bufsize", f"{max_bitrate * 2}k",
+        "-g", str(gop), "-keyint_min", str(gop), "-sc_threshold", "0",
         "-c:a", "aac", "-af", "volume=1.5", "-b:a", "64k", "-ar", "48000", "-ac", "1",
+        "-avoid_negative_ts", "make_zero", "-flvflags", "no_duration_filesize",
         "-f", "flv", destination,
     ]
 
