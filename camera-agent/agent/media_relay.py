@@ -27,7 +27,9 @@ def ffmpeg_command(camera, stream_key, ffmpeg="ffmpeg", ingest_url="rtmps://glob
         "-b:v", f"{video_bitrate}k", "-maxrate", f"{max_bitrate}k",
         "-bufsize", f"{max_bitrate * 2}k",
         "-g", str(gop), "-keyint_min", str(gop), "-sc_threshold", "0",
-        "-c:a", "aac", "-af", "volume=1.5", "-b:a", "64k", "-ar", "48000", "-ac", "1",
+        "-c:a", "aac",
+        "-af", "aresample=async=1:first_pts=0,asetpts=N/SR/TB,volume=1.5",
+        "-b:a", "64k", "-ar", "48000", "-ac", "1",
         "-avoid_negative_ts", "make_zero", "-flvflags", "no_duration_filesize",
         "-f", "flv", destination,
     ]
