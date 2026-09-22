@@ -49,7 +49,7 @@ $newConfig = [ordered]@{
         [ordered]@{ id = "CAM03"; name = "Câmera 03"; ip = "192.168.1.16" }
         [ordered]@{ id = "CAM04"; name = "Câmera 04"; ip = "192.168.1.19" }
         [ordered]@{ id = "CAM05"; name = "Câmera 05"; ip = "192.168.1.2" }
-        [ordered]@{ id = "CAM06"; name = "Câmera 06"; ip = "192.168.1.21" }
+        [ordered]@{ id = "CAM06"; name = "Câmera 06"; ip = "192.168.1.248" }
         [ordered]@{ id = "CAM07"; name = "Câmera 07"; ip = "192.168.1.13" }
         [ordered]@{ id = "CAM08"; name = "Câmera 08"; ip = "192.168.1.12" }
         [ordered]@{ id = "CAM09"; name = "Câmera 09"; ip = "192.168.1.22" }
