@@ -39,7 +39,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      return json({ ok: true, service: "neo-vision-camera" });
+      return json({ ok: true, service: "neo-vision-camera", features: { emailAlerts: Boolean(env.ALERT_EMAIL) } });
     }
 
     if (url.pathname === "/auth-config") {
