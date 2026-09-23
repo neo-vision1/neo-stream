@@ -46,7 +46,7 @@ let lastUsageTick = performance.now();
 let lastInteraction = Date.now();
 
 function cameraLabel(camera) { return settings.cameraNames[camera.id] || camera.name || `${t("cameraName")} ${camera.id.replace("CAM", "")}`; }
-function gridLimit() { return effectiveGridLimit(settings.profileGridLimit, settings.systemGridLimit); }
+function gridLimit() { return settings.role === "admin" ? 11 : effectiveGridLimit(settings.profileGridLimit, settings.systemGridLimit); }
 
 function selectedCamera() { return cameras.find((camera) => camera.id === selectedCameraId); }
 function setControls(enabled) { controls.forEach((button) => { button.disabled = !enabled; }); }
@@ -409,9 +409,13 @@ document.querySelectorAll(".move").forEach((button) => {
 document.querySelector("#stop").addEventListener("click", stop);
 window.addEventListener("blur", () => { if (activeDirection) stop(); });
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden || !settings.autoPauseHidden) return;
-  elements.muxPlayer.pause(); pauseGridPlayers();
+  if (!document.hidden) {
+    window.NeoVisionSettings.refreshAccess().catch(() => {});
+    return;
+  }
+  if (settings.autoPauseHidden) { elements.muxPlayer.pause(); pauseGridPlayers(); }
 });
+window.addEventListener("focus", () => window.NeoVisionSettings.refreshAccess().catch(() => {}));
 ["pointerdown", "keydown", "scroll"].forEach((eventName) => document.addEventListener(eventName, () => { lastInteraction = Date.now(); }, { passive: true }));
 setInterval(() => {
   if (Date.now() - lastInteraction < settings.idleMinutes * 60_000) return;
@@ -464,3 +468,6 @@ try {
 window.addEventListener("neo-language-change", () => { renderCameraList(); selectCamera(selectedCameraId); });
 setInterval(refreshLiveState, 1000);
 setInterval(updateUsageEstimate, 5000);
+setInterval(() => {
+  if (!document.hidden && window.NeoVisionAuth.session) window.NeoVisionSettings.refreshAccess().catch(() => {});
+}, 30_000);
