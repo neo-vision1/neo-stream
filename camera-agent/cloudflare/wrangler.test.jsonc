@@ -6,6 +6,12 @@
   "vars": {
     "CONTROL_ORIGIN": "https://neo-vision-camera.neo-vision-cloudflare.workers.dev"
   },
+  "services": [
+    {
+      "binding": "CONTROL_WORKER",
+      "service": "neo-vision-camera"
+    }
+  ],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
