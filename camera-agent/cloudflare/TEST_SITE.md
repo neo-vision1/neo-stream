@@ -15,6 +15,7 @@ O ambiente de teste usa o Worker `neo-vision-camera-test` e nunca substitui o Wo
 - gestão de função, PTZ, áudio e limite multicâmera por perfil;
 - seleção da grade salva por usuário e botão para limpar a grade;
 - layout horizontal para celular, com a grade em largura total, faixa rolável de câmeras e distribuição automática em 2, 3 ou 4 colunas;
+- compatibilidade móvel sem depender de `:has()`: a quantidade de colunas usa um atributo explícito, e a faixa de câmeras fica fixa abaixo dos vídeos com suporte à área segura do iOS;
 - permissões sensíveis negadas por padrão e preparadas para validação também no Worker.
 
 ## Segurança e isolamento
