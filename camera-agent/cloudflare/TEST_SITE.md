@@ -12,6 +12,9 @@ O ambiente de teste usa o Worker `neo-vision-camera-test` e nunca substitui o Wo
 - estimativa de minutos entregues pelo Mux na sessão;
 - nomes de câmera por perfil;
 - funções `admin`, `operator` e `viewer`.
+- gestão de função, PTZ, áudio e limite multicâmera por perfil;
+- seleção da grade salva por usuário e botão para limpar a grade;
+- permissões sensíveis negadas por padrão e preparadas para validação também no Worker.
 
 ## Segurança e isolamento
 
@@ -27,6 +30,15 @@ O ambiente de teste usa o Worker `neo-vision-camera-test` e nunca substitui o Wo
 2. Execute `supabase-test-schema.sql`.
 3. Substitua o e-mail do exemplo no último comando e promova somente a conta administradora.
 4. Entre no site de teste e confirme que o botão **Admin** aparece.
+5. Abra **Admin > Perfis e permissões** e defina explicitamente os acessos de cada usuário.
+
+Contas novas entram como `viewer`, sem PTZ e sem falar na câmera. A conta que está usando o painel administrativo não pode alterar a si própria nessa tela, evitando a remoção acidental do único administrador.
+
+Se o esquema já foi aplicado antes desta atualização, execute o arquivo novamente. Ele é idempotente e criará `viewer_preferences`, ajustará os padrões seguros e removerá PTZ/áudio dos perfis que ainda são `viewer`.
+
+## Consumo do Mux
+
+O valor exibido no painel é uma estimativa local da sessão. A leitura oficial da conta Mux ainda depende de credenciais de API guardadas como segredos no Cloudflare e não deve ser feita diretamente no navegador.
 
 ## Validação
 
