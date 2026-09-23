@@ -15,13 +15,15 @@ const elements = {
   goLive: document.querySelector("#goLive"), fullscreen: document.querySelector("#fullscreen"),
   singleView: document.querySelector("#singleView"), gridView: document.querySelector("#gridView"),
   singleViewer: document.querySelector("#singleViewer"), gridViewer: document.querySelector("#gridViewer"),
-  gridCount: document.querySelector("#gridCount"), renameCamera: document.querySelector("#renameCamera"),
+  gridCount: document.querySelector("#gridCount"), clearGrid: document.querySelector("#clearGrid"), renameCamera: document.querySelector("#renameCamera"),
   adminToggle: document.querySelector("#adminToggle"), adminPanel: document.querySelector("#adminPanel"),
   closeAdmin: document.querySelector("#closeAdmin"), adminSettings: document.querySelector("#adminSettings"),
   adminMulticamera: document.querySelector("#adminMulticamera"), adminGridLimit: document.querySelector("#adminGridLimit"),
   adminAutoPause: document.querySelector("#adminAutoPause"), adminIdleMinutes: document.querySelector("#adminIdleMinutes"),
   adminMessage: document.querySelector("#adminMessage"), estimatedUsage: document.querySelector("#estimatedUsage"),
-  quotaBar: document.querySelector("#quotaBar"), quotaLabel: document.querySelector("#quotaLabel")
+  quotaBar: document.querySelector("#quotaBar"), quotaLabel: document.querySelector("#quotaLabel"),
+  refreshProfiles: document.querySelector("#refreshProfiles"), profilesMessage: document.querySelector("#profilesMessage"),
+  profilesList: document.querySelector("#profilesList")
 };
 const t = (key) => window.NeoVisionUI.t(key);
 const cameras = Array.isArray(window.NEO_VISION_CAMERAS) ? window.NEO_VISION_CAMERAS : [];
@@ -107,6 +109,7 @@ function setViewMode(mode) {
   elements.gridViewer.hidden = mode !== "grid";
   elements.singleView.classList.toggle("active", mode === "single");
   elements.gridView.classList.toggle("active", mode === "grid");
+  elements.clearGrid.hidden = mode !== "grid";
   if (mode === "grid") {
     elements.muxPlayer.pause();
     renderGrid();
@@ -129,6 +132,57 @@ function toggleGridCamera(cameraId) {
   }
   renderCameraList();
   renderGrid();
+  window.NeoVisionSettings.saveGridSelection(gridCameraIds).catch(() => message("Não foi possível salvar a seleção da grade."));
+}
+
+function clearGrid() {
+  gridCameraIds = [];
+  renderCameraList();
+  renderGrid();
+  window.NeoVisionSettings.saveGridSelection([]).catch(() => message("Não foi possível salvar a seleção da grade."));
+}
+
+function profileRow(profile, currentUserId) {
+  const form = document.createElement("form");
+  form.className = "profile-row";
+  form.dataset.profileId = profile.id;
+  const identity = document.createElement("div"); identity.className = "profile-identity";
+  const email = document.createElement("strong"); email.textContent = profile.email || "Usuário sem e-mail";
+  const note = document.createElement("small"); note.textContent = profile.id === currentUserId ? "Conta em uso" : "";
+  identity.append(email, note);
+  const role = document.createElement("select"); role.ariaLabel = "Função";
+  [["viewer", "Visualizador"], ["operator", "Operador"], ["admin", "Administrador"]].forEach(([value, label]) => {
+    const option = document.createElement("option"); option.value = value; option.textContent = label; option.selected = profile.role === value; role.append(option);
+  });
+  const ptzInput = document.createElement("input"); ptzInput.type = "checkbox"; ptzInput.checked = Boolean(profile.can_ptz);
+  const ptz = document.createElement("label"); ptz.className = "profile-check"; ptz.append(ptzInput, " PTZ");
+  const talkInput = document.createElement("input"); talkInput.type = "checkbox"; talkInput.checked = Boolean(profile.can_talk);
+  const talk = document.createElement("label"); talk.className = "profile-check"; talk.append(talkInput, " Áudio");
+  const limit = document.createElement("select"); limit.ariaLabel = "Limite multicâmera";
+  [1, 2, 4, 6, 9, 11].forEach((value) => { const option = document.createElement("option"); option.value = String(value); option.textContent = `${value} câmera${value > 1 ? "s" : ""}`; option.selected = Number(profile.multicamera_limit) === value; limit.append(option); });
+  const save = document.createElement("button"); save.type = "submit"; save.textContent = "Salvar";
+  if (profile.id === currentUserId) [role, ptzInput, talkInput, limit, save].forEach((item) => { item.disabled = true; });
+  form.append(identity, role, ptz, talk, limit, save);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault(); save.disabled = true; save.textContent = "Salvando…";
+    try {
+      await window.NeoVisionSettings.updateProfile(profile.id, { role: role.value, canPtz: ptzInput.checked, canTalk: talkInput.checked, multicameraLimit: limit.value });
+      save.textContent = "Salvo";
+    } catch { save.textContent = "Erro"; }
+    setTimeout(() => { save.disabled = false; save.textContent = "Salvar"; }, 1200);
+  });
+  return form;
+}
+
+async function loadProfiles() {
+  elements.profilesMessage.textContent = "Carregando perfis…";
+  elements.profilesList.replaceChildren();
+  try {
+    const profiles = await window.NeoVisionSettings.listProfiles();
+    const currentUserId = window.NeoVisionAuth.session?.user?.id;
+    elements.profilesList.replaceChildren(...profiles.map((profile) => profileRow(profile, currentUserId)));
+    elements.profilesMessage.textContent = profiles.length ? `${profiles.length} perfil(is) encontrado(s).` : "Nenhum perfil encontrado.";
+  } catch { elements.profilesMessage.textContent = "Não foi possível carregar os perfis. Verifique o esquema e a permissão de administrador."; }
 }
 
 function renderGrid() {
@@ -250,7 +304,7 @@ async function connect() {
     } else if (window.NeoVisionTalk.handleMessage(data)) {
       return;
     } else if (data.type === "error") {
-      const errors = { unauthorized: t("unauthorized"), agent_offline: t("agentOffline"), invalid_ptz_command: t("invalidPtz"), invalid_talk_command: t("invalidTalk") };
+      const errors = { unauthorized: t("unauthorized"), agent_offline: t("agentOffline"), invalid_ptz_command: t("invalidPtz"), invalid_talk_command: t("invalidTalk"), ptz_forbidden: "Seu perfil não possui permissão para PTZ.", talk_forbidden: "Seu perfil não possui permissão para falar na câmera." };
       message(errors[data.error] || `${t("error")}: ${data.error}`);
     }
   });
@@ -296,6 +350,7 @@ elements.volumeControl.addEventListener("input", async () => {
 elements.connect.addEventListener("click", connect);
 elements.singleView.addEventListener("click", () => setViewMode("single"));
 elements.gridView.addEventListener("click", () => setViewMode("grid"));
+elements.clearGrid.addEventListener("click", clearGrid);
 elements.fullscreen.addEventListener("click", async () => {
   const target = viewMode === "grid" ? elements.gridViewer : elements.playerWrap;
   try { await target.requestFullscreen(); } catch { message("O navegador não permitiu abrir a tela cheia."); }
@@ -313,8 +368,9 @@ elements.renameCamera.addEventListener("click", async () => {
   try { await window.NeoVisionSettings.saveCameraName(camera.id, name); message("Nome personalizado salvo para este perfil."); }
   catch { message("Não foi possível salvar o nome. O esquema de teste do Supabase precisa ser aplicado."); }
 });
-elements.adminToggle.addEventListener("click", () => { elements.adminPanel.hidden = false; elements.adminPanel.scrollIntoView({ behavior: "smooth" }); });
+elements.adminToggle.addEventListener("click", () => { elements.adminPanel.hidden = false; loadProfiles(); elements.adminPanel.scrollIntoView({ behavior: "smooth" }); });
 elements.closeAdmin.addEventListener("click", () => { elements.adminPanel.hidden = true; });
+elements.refreshProfiles.addEventListener("click", loadProfiles);
 elements.adminSettings.addEventListener("submit", async (event) => {
   event.preventDefault(); elements.adminMessage.textContent = "Salvando…";
   const values = {
@@ -379,7 +435,9 @@ window.NeoVisionAuth.onChange((session) => {
 });
 
 window.NeoVisionSettings.onChange((value) => {
+  const firstLoad = !gridCameraIds.length;
   settings = value;
+  if (firstLoad && Array.isArray(settings.gridCameraIds)) gridCameraIds = settings.gridCameraIds.slice(0, gridLimit());
   elements.adminToggle.hidden = settings.role !== "admin";
   if (settings.role !== "admin") elements.adminPanel.hidden = true;
   elements.adminMulticamera.checked = settings.multicameraEnabled;
