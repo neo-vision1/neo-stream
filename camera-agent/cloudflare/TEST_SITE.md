@@ -38,3 +38,5 @@ npx wrangler deploy --config wrangler.test.jsonc
 ```
 
 Antes da publicação em produção, validar desktop, celular, PTZ, áudio, tela cheia, retorno ao vivo, limites da grade e permissões de cada perfil.
+
+O deploy automático é executado somente por `.github/workflows/deploy-test-site.yml` nesta branch.
