@@ -105,6 +105,7 @@ function setViewMode(mode) {
     return;
   }
   viewMode = mode;
+  document.documentElement.dataset.viewMode = mode;
   elements.singleViewer.hidden = mode !== "single";
   elements.gridViewer.hidden = mode !== "grid";
   elements.singleView.classList.toggle("active", mode === "single");
