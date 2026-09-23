@@ -16,7 +16,7 @@ O ambiente de teste usa o Worker `neo-vision-camera-test` e nunca substitui o Wo
 ## Segurança e isolamento
 
 - O arquivo `wrangler.test.jsonc` publica outro Worker.
-- O teste usa `CONTROL_ORIGIN` apenas para encaminhar login e WebSocket ao controle já existente.
+- O teste usa a Service Binding `CONTROL_WORKER` para encaminhar login e WebSocket ao controle já existente.
 - IPs, senhas das câmeras e stream keys não são enviados ao navegador.
 - A grade nunca inicia todas as câmeras automaticamente.
 - Configurações e nomes usam RLS no Supabase.
@@ -38,5 +38,3 @@ npx wrangler deploy --config wrangler.test.jsonc
 ```
 
 Antes da publicação em produção, validar desktop, celular, PTZ, áudio, tela cheia, retorno ao vivo, limites da grade e permissões de cada perfil.
-
-O deploy automático é executado somente por `.github/workflows/deploy-test-site.yml` nesta branch.
