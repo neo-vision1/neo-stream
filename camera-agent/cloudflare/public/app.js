@@ -189,6 +189,7 @@ async function loadProfiles() {
 function renderGrid() {
   const limit = gridLimit();
   elements.gridCount.textContent = `${gridCameraIds.length}/${limit}`;
+  elements.gridViewer.dataset.count = String(gridCameraIds.length);
   elements.gridViewer.replaceChildren();
   if (!gridCameraIds.length) {
     const empty = document.createElement("div"); empty.className = "grid-empty";
