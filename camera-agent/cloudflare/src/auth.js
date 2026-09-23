@@ -28,3 +28,33 @@ export async function verifySupabaseUser(env, accessToken, fetchImpl = fetch) {
     return null;
   }
 }
+
+export async function getSupabasePermissions(env, accessToken, userId, fetchImpl = fetch) {
+  if (!supabaseConfigured(env) || typeof userId !== "string" || !userId || typeof accessToken !== "string") return null;
+  let profileUrl;
+  try {
+    profileUrl = new URL("/rest/v1/profiles", `${env.SUPABASE_URL.replace(/\/$/, "")}/`);
+    profileUrl.searchParams.set("id", `eq.${userId}`);
+    profileUrl.searchParams.set("select", "role,can_ptz,can_talk,multicamera_limit");
+    profileUrl.searchParams.set("limit", "1");
+  } catch {
+    return null;
+  }
+  try {
+    const response = await fetchImpl(profileUrl, {
+      headers: { apikey: env.SUPABASE_ANON_KEY, authorization: `Bearer ${accessToken}` }
+    });
+    if (!response.ok) return null;
+    const rows = await response.json();
+    const profile = Array.isArray(rows) ? rows[0] : null;
+    if (!profile) return null;
+    return {
+      role: ["admin", "operator", "viewer"].includes(profile.role) ? profile.role : "viewer",
+      canPtz: profile.can_ptz === true,
+      canTalk: profile.can_talk === true,
+      multicameraLimit: [1, 2, 4, 6, 9, 11].includes(Number(profile.multicamera_limit)) ? Number(profile.multicamera_limit) : 1
+    };
+  } catch {
+    return null;
+  }
+}
