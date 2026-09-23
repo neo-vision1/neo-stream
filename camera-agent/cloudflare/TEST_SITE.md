@@ -14,6 +14,7 @@ O ambiente de teste usa o Worker `neo-vision-camera-test` e nunca substitui o Wo
 - funções `admin`, `operator` e `viewer`.
 - gestão de função, PTZ, áudio e limite multicâmera por perfil;
 - seleção da grade salva por usuário e botão para limpar a grade;
+- layout horizontal para celular, com a grade em largura total, faixa rolável de câmeras e distribuição automática em 2, 3 ou 4 colunas;
 - permissões sensíveis negadas por padrão e preparadas para validação também no Worker.
 
 ## Segurança e isolamento
