@@ -37,3 +37,11 @@ test("loads operator permissions with fail-closed booleans", async () => {
 test("rejects missing permission profiles", async () => {
   assert.equal(await getSupabasePermissions(env, "a".repeat(30), "user-1", async () => ({ ok: true, json: async () => [] })), null);
 });
+
+test("always grants the administrator full camera access", async () => {
+  const permissions = await getSupabasePermissions(env, "a".repeat(30), "admin-1", async () => ({
+    ok: true,
+    json: async () => [{ role: "admin", can_ptz: false, can_talk: false, multicamera_limit: 1 }]
+  }));
+  assert.deepEqual(permissions, { role: "admin", canPtz: true, canTalk: true, multicameraLimit: 11 });
+});
