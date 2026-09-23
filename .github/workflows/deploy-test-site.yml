@@ -1,0 +1,51 @@
+name: Deploy site de teste
+
+on:
+  push:
+    branches:
+      - test/site-improvements-20260923
+    paths:
+      - "camera-agent/cloudflare/**"
+      - ".github/workflows/deploy-test-site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neo-vision-camera-test
+  cancel-in-progress: true
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: camera-agent/cloudflare
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: camera-agent/cloudflare/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Executar testes
+        run: npm test
+
+      - name: Validar Worker de teste
+        run: npx wrangler deploy --dry-run --config wrangler.test.jsonc
+
+      - name: Publicar Worker de teste
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: camera-agent/cloudflare
+          command: deploy --config wrangler.test.jsonc
