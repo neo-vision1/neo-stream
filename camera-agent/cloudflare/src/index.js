@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { heartbeatCameras, parseMessage, validIdentifier, validatePtz, validateTalk } from "./protocol.js";
-import { supabaseConfigured, verifySupabaseUser } from "./auth.js";
+import { getSupabasePermissions, supabaseConfigured, verifySupabaseUser } from "./auth.js";
 
 const HEARTBEAT_MAX_AGE_MS = 30_000;
 
@@ -106,6 +106,7 @@ export class CameraSite extends DurableObject {
   async authenticate(ws, message, attachment) {
     const role = message.role === "operator" ? "operator" : "agent";
     const operatorUser = role === "operator" ? await verifySupabaseUser(this.env, message.accessToken) : null;
+    const operatorPermissions = operatorUser ? await getSupabasePermissions(this.env, message.accessToken, operatorUser.id) : null;
     const agentAuthorized = role === "agent" && this.env.AGENT_TOKEN && message.token === this.env.AGENT_TOKEN;
     if ((role === "operator" && !operatorUser) || (role === "agent" && !agentAuthorized)) {
       send(ws, { type: "error", error: "unauthorized" });
@@ -123,10 +124,12 @@ export class CameraSite extends DurableObject {
       authenticated: true,
       role,
       userId: operatorUser?.id || null,
+      canPtz: role === "operator" && operatorPermissions?.canPtz === true,
+      canTalk: role === "operator" && operatorPermissions?.canTalk === true,
       agentId: role === "agent" && validIdentifier(message.agentId) ? message.agentId : null
     };
     ws.serializeAttachment(next);
-    send(ws, { type: "auth_ok", role, siteId: next.siteId });
+    send(ws, { type: "auth_ok", role, siteId: next.siteId, permissions: role === "operator" ? { canPtz: next.canPtz, canTalk: next.canTalk } : undefined });
     if (role === "operator") send(ws, await this.currentStatus(next.siteId));
   }
 
@@ -159,6 +162,10 @@ export class CameraSite extends DurableObject {
     }
 
     if (attachment.role === "operator" && message.type === "ptz") {
+      if (!attachment.canPtz) {
+        send(ws, { type: "error", error: "ptz_forbidden" });
+        return;
+      }
       const command = validatePtz(message);
       if (!command) {
         send(ws, { type: "error", error: "invalid_ptz_command" });
@@ -176,6 +183,10 @@ export class CameraSite extends DurableObject {
     }
 
     if (attachment.role === "operator" && message.type?.startsWith("talk_")) {
+      if (!attachment.canTalk) {
+        send(ws, { type: "error", error: "talk_forbidden" });
+        return;
+      }
       const command = validateTalk(message);
       if (!command) {
         send(ws, { type: "error", error: "invalid_talk_command" });
