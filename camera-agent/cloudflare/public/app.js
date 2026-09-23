@@ -370,7 +370,7 @@ elements.renameCamera.addEventListener("click", async () => {
   try { await window.NeoVisionSettings.saveCameraName(camera.id, name); message("Nome personalizado salvo para este perfil."); }
   catch { message("Não foi possível salvar o nome. O esquema de teste do Supabase precisa ser aplicado."); }
 });
-elements.adminToggle.addEventListener("click", () => { elements.adminPanel.hidden = false; loadProfiles(); elements.adminPanel.scrollIntoView({ behavior: "smooth" }); });
+elements.adminToggle.addEventListener("click", () => { elements.adminPanel.hidden = false; loadProfiles(); window.NeoVisionAlerts?.load(); elements.adminPanel.scrollIntoView({ behavior: "smooth" }); });
 elements.closeAdmin.addEventListener("click", () => { elements.adminPanel.hidden = true; });
 elements.refreshProfiles.addEventListener("click", loadProfiles);
 elements.adminSettings.addEventListener("submit", async (event) => {
