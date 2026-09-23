@@ -200,6 +200,24 @@ export class CameraSite extends DurableObject {
     for (const socket of this.connections(role)) send(socket, data);
   }
 
+  operatorStatus(status, attachment) {
+    const allowed = new Set(attachment?.allowedCameraIds || []);
+    const cameras = (status.cameras || []).filter((camera) => allowed.has(camera.cameraId));
+    return {
+      ...status,
+      cameras,
+      cameraOnline: cameras.some((camera) => camera.cameraOnline),
+      cameraId: cameras[0]?.cameraId || null
+    };
+  }
+
+  async broadcastStatus(siteId, excludedSocket = null) {
+    const status = await this.currentStatus(siteId, excludedSocket);
+    for (const socket of this.connections("operator")) {
+      send(socket, this.operatorStatus(status, socket.deserializeAttachment()));
+    }
+  }
+
   async authenticate(ws, message, attachment) {
     const role = message.role === "operator" ? "operator" : "agent";
     const operatorUser = role === "operator" ? await verifySupabaseUser(this.env, message.accessToken) : null;
@@ -223,12 +241,13 @@ export class CameraSite extends DurableObject {
       userId: operatorUser?.id || null,
       canPtz: role === "operator" && operatorPermissions?.canPtz === true,
       canTalk: role === "operator" && operatorPermissions?.canTalk === true,
+      allowedCameraIds: role === "operator" ? (operatorPermissions?.allowedCameraIds || []) : [],
       agentId: role === "agent" && validIdentifier(message.agentId) ? message.agentId : null
     };
     ws.serializeAttachment(next);
     await this.ctx.storage.put("siteId", next.siteId);
-    send(ws, { type: "auth_ok", role, siteId: next.siteId, permissions: role === "operator" ? { canPtz: next.canPtz, canTalk: next.canTalk } : undefined });
-    if (role === "operator") send(ws, await this.currentStatus(next.siteId));
+    send(ws, { type: "auth_ok", role, siteId: next.siteId, permissions: role === "operator" ? { canPtz: next.canPtz, canTalk: next.canTalk, allowedCameraIds: next.allowedCameraIds } : undefined });
+    if (role === "operator") send(ws, this.operatorStatus(await this.currentStatus(next.siteId), next));
   }
 
   async webSocketMessage(ws, raw) {
@@ -256,7 +275,7 @@ export class CameraSite extends DurableObject {
       };
       await this.ctx.storage.put("status", status);
       await this.processAlerts(attachment.siteId);
-      this.broadcast("operator", await this.currentStatus(attachment.siteId));
+      await this.broadcastStatus(attachment.siteId);
       return;
     }
 
@@ -268,6 +287,10 @@ export class CameraSite extends DurableObject {
       const command = validatePtz(message);
       if (!command) {
         send(ws, { type: "error", error: "invalid_ptz_command" });
+        return;
+      }
+      if (!attachment.allowedCameraIds?.includes(command.cameraId)) {
+        send(ws, { type: "error", error: "camera_forbidden" });
         return;
       }
       const agents = this.connections("agent");
@@ -289,6 +312,10 @@ export class CameraSite extends DurableObject {
       const command = validateTalk(message);
       if (!command) {
         send(ws, { type: "error", error: "invalid_talk_command" });
+        return;
+      }
+      if (!attachment.allowedCameraIds?.includes(command.cameraId)) {
+        send(ws, { type: "error", error: "camera_forbidden" });
         return;
       }
       const agents = this.connections("agent");
@@ -330,7 +357,7 @@ export class CameraSite extends DurableObject {
   async webSocketClose(ws, code, reason) {
     const attachment = ws.deserializeAttachment();
     if (attachment?.role === "agent") {
-      this.broadcast("operator", await this.currentStatus(attachment.siteId, ws));
+      await this.broadcastStatus(attachment.siteId, ws);
     }
     try {
       ws.close(code, reason);

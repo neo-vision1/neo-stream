@@ -10,12 +10,14 @@ O ambiente de teste usa o Worker `neo-vision-camera-test` e nunca substitui o Wo
 - grade selecionável com limite administrativo de 1, 2, 4, 6, 9 ou 11 câmeras;
 - pausa quando a aba fica oculta ou inativa;
 - estimativa de minutos entregues pelo Mux na sessão;
-- nomes de câmera por perfil;
+- nomes globais de câmera definidos pelo administrador e exibidos para todos os perfis;
 - funções `admin`, `operator` e `viewer`.
 - gestão de função, PTZ, áudio e limite multicâmera por perfil;
+- seleção individual das câmeras permitidas para cada perfil (por exemplo, somente `CAM06`);
 - seleção da grade salva por usuário e botão para limpar a grade;
 - layout horizontal para celular, com a grade em largura total, faixa rolável de câmeras e distribuição automática em 2, 3 ou 4 colunas;
 - compatibilidade móvel sem depender de `:has()`: a quantidade de colunas usa um atributo explícito, e a faixa de câmeras fica fixa abaixo dos vídeos com suporte à área segura do iOS;
+- tela cheia com API nativa quando disponível e modo adaptado quando o iOS/navegador não permite fullscreen do elemento;
 - permissões sensíveis negadas por padrão e preparadas para validação também no Worker.
 
 ## Segurança e isolamento
@@ -36,9 +38,9 @@ O ambiente de teste usa o Worker `neo-vision-camera-test` e nunca substitui o Wo
 
 Contas novas entram como `viewer`, sem PTZ e sem falar na câmera. A conta que está usando o painel administrativo não pode alterar a si própria nessa tela, evitando a remoção acidental do único administrador.
 
-O perfil `admin` sempre tem PTZ, áudio e acesso às 11 câmeras, independentemente do limite individual gravado anteriormente. Alterações de acesso são confirmadas pelo Supabase e reaplicadas ao usuário ao entrar, ao voltar para a aba e, enquanto a página estiver visível, a cada 30 segundos. Ao conceder a um usuário um limite multicâmera maior que o limite geral atual, o limite geral é elevado automaticamente; os outros usuários continuam respeitando seus limites individuais.
+O perfil `admin` sempre tem PTZ, áudio e acesso às 11 câmeras, independentemente do limite individual gravado anteriormente. Para os demais perfis, o administrador seleciona exatamente quais câmeras aparecem e podem receber comandos PTZ/áudio. Alterações de acesso e nomes globais são confirmadas pelo Supabase e reaplicadas ao usuário ao entrar, ao voltar para a aba e, enquanto a página estiver visível, a cada 30 segundos. Ao conceder a um usuário um limite multicâmera maior que o limite geral atual, o limite geral é elevado automaticamente; os outros usuários continuam respeitando seus limites individuais.
 
-Se o esquema já foi aplicado antes desta atualização, execute o arquivo novamente. Ele é idempotente e criará `viewer_preferences`, ajustará os padrões seguros e removerá PTZ/áudio dos perfis que ainda são `viewer`.
+Se o esquema já foi aplicado antes desta atualização, execute o arquivo novamente. Ele é idempotente e criará `viewer_preferences`, `camera_settings` e `profile_camera_access`, ajustará os padrões seguros e removerá PTZ/áudio dos perfis que ainda são `viewer`. Os acessos existentes começam com as 11 câmeras liberadas, para não bloquear usuários durante a migração; depois o administrador pode reduzir cada perfil.
 
 ## Consumo do Mux
 

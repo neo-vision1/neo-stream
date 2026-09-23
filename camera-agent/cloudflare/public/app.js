@@ -14,7 +14,7 @@ const elements = {
   liveTimeline: document.querySelector("#liveTimeline"), delayLabel: document.querySelector("#delayLabel"),
   goLive: document.querySelector("#goLive"), fullscreen: document.querySelector("#fullscreen"),
   singleView: document.querySelector("#singleView"), gridView: document.querySelector("#gridView"),
-  singleViewer: document.querySelector("#singleViewer"), gridViewer: document.querySelector("#gridViewer"),
+  viewerCard: document.querySelector(".viewer-card"), singleViewer: document.querySelector("#singleViewer"), gridViewer: document.querySelector("#gridViewer"),
   gridCount: document.querySelector("#gridCount"), clearGrid: document.querySelector("#clearGrid"), renameCamera: document.querySelector("#renameCamera"),
   adminToggle: document.querySelector("#adminToggle"), adminPanel: document.querySelector("#adminPanel"),
   closeAdmin: document.querySelector("#closeAdmin"), adminSettings: document.querySelector("#adminSettings"),
@@ -23,7 +23,8 @@ const elements = {
   adminMessage: document.querySelector("#adminMessage"), estimatedUsage: document.querySelector("#estimatedUsage"),
   quotaBar: document.querySelector("#quotaBar"), quotaLabel: document.querySelector("#quotaLabel"),
   refreshProfiles: document.querySelector("#refreshProfiles"), profilesMessage: document.querySelector("#profilesMessage"),
-  profilesList: document.querySelector("#profilesList")
+  profilesList: document.querySelector("#profilesList"), cameraNamesForm: document.querySelector("#cameraNamesForm"),
+  adminCameraNames: document.querySelector("#adminCameraNames"), cameraNamesMessage: document.querySelector("#cameraNamesMessage")
 };
 const t = (key) => window.NeoVisionUI.t(key);
 const cameras = Array.isArray(window.NEO_VISION_CAMERAS) ? window.NEO_VISION_CAMERAS : [];
@@ -44,9 +45,16 @@ let gridCameraIds = [];
 let sessionDeliveredSeconds = 0;
 let lastUsageTick = performance.now();
 let lastInteraction = Date.now();
+let pseudoFullscreen = false;
 
 function cameraLabel(camera) { return settings.cameraNames[camera.id] || camera.name || `${t("cameraName")} ${camera.id.replace("CAM", "")}`; }
 function gridLimit() { return settings.role === "admin" ? 11 : effectiveGridLimit(settings.profileGridLimit, settings.systemGridLimit); }
+function accessibleCameras() {
+  if (settings.role === "admin") return cameras;
+  const allowed = new Set(settings.allowedCameraIds || []);
+  return cameras.filter((camera) => allowed.has(camera.id));
+}
+function canAccessCamera(cameraId) { return accessibleCameras().some((camera) => camera.id === cameraId); }
 
 function selectedCamera() { return cameras.find((camera) => camera.id === selectedCameraId); }
 function setControls(enabled) { controls.forEach((button) => { button.disabled = !enabled; }); }
@@ -54,6 +62,19 @@ function setDot(dot, online) { dot.className = `dot ${online ? "online" : "offli
 function message(text) { elements.message.textContent = text; }
 
 function selectCamera(cameraId) {
+  if (!canAccessCamera(cameraId)) {
+    const fallback = accessibleCameras()[0];
+    if (!fallback) {
+      elements.cameraName.textContent = "Nenhuma câmera liberada";
+      elements.cameraIdBadge.textContent = "—";
+      elements.muxPlayer.removeAttribute("playback-id");
+      elements.muxPlayer.hidden = true;
+      elements.videoEmpty.hidden = false;
+      setControls(false);
+      return;
+    }
+    cameraId = fallback.id;
+  }
   if (selectedCameraId !== cameraId) window.NeoVisionTalk.stop();
   if (activeDirection && selectedCameraId !== cameraId) {
     send({ type: "ptz", cameraId: selectedCameraId, command: "stop" });
@@ -80,7 +101,7 @@ function selectCamera(cameraId) {
 }
 
 function renderCameraList() {
-  elements.cameraList.replaceChildren(...cameras.map((camera) => {
+  elements.cameraList.replaceChildren(...accessibleCameras().map((camera) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "camera-item";
@@ -126,6 +147,7 @@ function pauseGridPlayers() {
 }
 
 function toggleGridCamera(cameraId) {
+  if (!canAccessCamera(cameraId)) return;
   const before = gridCameraIds.length;
   gridCameraIds = selectWithinLimit(gridCameraIds, cameraId, gridLimit());
   if (before === gridCameraIds.length && !gridCameraIds.includes(cameraId)) {
@@ -141,6 +163,16 @@ function clearGrid() {
   renderCameraList();
   renderGrid();
   window.NeoVisionSettings.saveGridSelection([]).catch(() => message("Não foi possível salvar a seleção da grade."));
+}
+
+function renderAdminCameraNames() {
+  elements.adminCameraNames.replaceChildren(...cameras.map((camera) => {
+    const label = document.createElement("label");
+    const code = document.createElement("strong"); code.textContent = camera.id;
+    const input = document.createElement("input"); input.type = "text"; input.maxLength = 60; input.dataset.cameraId = camera.id; input.value = cameraLabel(camera);
+    label.append(code, input);
+    return label;
+  }));
 }
 
 function profileRow(profile, currentUserId) {
@@ -162,14 +194,30 @@ function profileRow(profile, currentUserId) {
   const limit = document.createElement("select"); limit.ariaLabel = "Limite multicâmera";
   [1, 2, 4, 6, 9, 11].forEach((value) => { const option = document.createElement("option"); option.value = String(value); option.textContent = `${value} câmera${value > 1 ? "s" : ""}`; option.selected = Number(profile.multicamera_limit) === value; limit.append(option); });
   const save = document.createElement("button"); save.type = "submit"; save.textContent = "Salvar";
+  const cameraAccess = document.createElement("fieldset"); cameraAccess.className = "profile-cameras";
+  const cameraLegend = document.createElement("legend"); cameraLegend.textContent = "Câmeras permitidas"; cameraAccess.append(cameraLegend);
+  const allowed = new Set(profile.role === "admin" ? cameras.map((camera) => camera.id) : (profile.allowed_camera_ids || []));
+  const cameraInputs = cameras.map((camera) => {
+    const input = document.createElement("input"); input.type = "checkbox"; input.value = camera.id; input.checked = allowed.has(camera.id);
+    const label = document.createElement("label"); label.append(input, camera.id.replace("CAM", "")); cameraAccess.append(label);
+    return input;
+  });
+  const syncAdminCameraAccess = () => {
+    const adminRole = role.value === "admin";
+    cameraInputs.forEach((input) => { if (adminRole) input.checked = true; input.disabled = adminRole || profile.id === currentUserId; });
+  };
+  role.addEventListener("change", syncAdminCameraAccess);
   if (profile.id === currentUserId) [role, ptzInput, talkInput, limit, save].forEach((item) => { item.disabled = true; });
-  form.append(identity, role, ptz, talk, limit, save);
+  syncAdminCameraAccess();
+  form.append(identity, role, ptz, talk, limit, save, cameraAccess);
   form.addEventListener("submit", async (event) => {
     event.preventDefault(); save.disabled = true; save.textContent = "Salvando…";
     try {
-      await window.NeoVisionSettings.updateProfile(profile.id, { role: role.value, canPtz: ptzInput.checked, canTalk: talkInput.checked, multicameraLimit: limit.value });
+      const allowedCameraIds = cameraInputs.filter((input) => input.checked).map((input) => input.value);
+      if (!allowedCameraIds.length) throw new Error("Selecione pelo menos uma câmera.");
+      await window.NeoVisionSettings.updateProfile(profile.id, { role: role.value, canPtz: ptzInput.checked, canTalk: talkInput.checked, multicameraLimit: limit.value, allowedCameraIds });
       save.textContent = "Salvo";
-    } catch { save.textContent = "Erro"; }
+    } catch (error) { save.textContent = "Erro"; elements.profilesMessage.textContent = error.message || "Não foi possível salvar o perfil."; }
     setTimeout(() => { save.disabled = false; save.textContent = "Salvar"; }, 1200);
   });
   return form;
@@ -198,6 +246,7 @@ function renderGrid() {
     empty.append(strong, span); elements.gridViewer.append(empty); return;
   }
   for (const cameraId of gridCameraIds) {
+    if (!canAccessCamera(cameraId)) continue;
     const camera = cameras.find((item) => item.id === cameraId);
     if (!camera?.playbackId) continue;
     const card = document.createElement("article"); card.className = "grid-camera";
@@ -353,10 +402,35 @@ elements.connect.addEventListener("click", connect);
 elements.singleView.addEventListener("click", () => setViewMode("single"));
 elements.gridView.addEventListener("click", () => setViewMode("grid"));
 elements.clearGrid.addEventListener("click", clearGrid);
+function updateFullscreenButton() {
+  const active = Boolean(document.fullscreenElement || document.webkitFullscreenElement || pseudoFullscreen);
+  elements.fullscreen.textContent = active ? "✕ Sair da tela cheia" : "⛶ Tela cheia";
+}
+
+function setPseudoFullscreen(enabled) {
+  pseudoFullscreen = enabled;
+  document.documentElement.toggleAttribute("data-pseudo-fullscreen", enabled);
+  updateFullscreenButton();
+}
+
 elements.fullscreen.addEventListener("click", async () => {
-  const target = viewMode === "grid" ? elements.gridViewer : elements.playerWrap;
-  try { await target.requestFullscreen(); } catch { message("O navegador não permitiu abrir a tela cheia."); }
+  if (pseudoFullscreen) { setPseudoFullscreen(false); return; }
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    try { await (document.exitFullscreen?.() || document.webkitExitFullscreen?.()); } catch { setPseudoFullscreen(false); }
+    return;
+  }
+  try {
+    const request = elements.viewerCard.requestFullscreen || elements.viewerCard.webkitRequestFullscreen;
+    if (!request) throw new Error("fullscreen_api_unavailable");
+    await request.call(elements.viewerCard);
+  } catch {
+    setPseudoFullscreen(true);
+    message("Tela cheia adaptada ativada para este navegador.");
+  }
+  updateFullscreenButton();
 });
+document.addEventListener("fullscreenchange", updateFullscreenButton);
+document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 elements.goLive.addEventListener("click", () => goToLive());
 elements.liveTimeline.addEventListener("input", () => {
   if (!elements.muxPlayer.seekable?.length) return;
@@ -367,12 +441,24 @@ elements.renameCamera.addEventListener("click", async () => {
   const camera = selectedCamera();
   const name = window.prompt("Nome personalizado desta câmera:", cameraLabel(camera));
   if (name === null) return;
-  try { await window.NeoVisionSettings.saveCameraName(camera.id, name); message("Nome personalizado salvo para este perfil."); }
+  try { await window.NeoVisionSettings.saveCameraName(camera.id, name); message("Nome atualizado para todos os usuários."); }
   catch { message("Não foi possível salvar o nome. O esquema de teste do Supabase precisa ser aplicado."); }
 });
-elements.adminToggle.addEventListener("click", () => { elements.adminPanel.hidden = false; loadProfiles(); window.NeoVisionAlerts?.load(); elements.adminPanel.scrollIntoView({ behavior: "smooth" }); });
+elements.adminToggle.addEventListener("click", () => { elements.adminPanel.hidden = false; renderAdminCameraNames(); loadProfiles(); window.NeoVisionAlerts?.load(); elements.adminPanel.scrollIntoView({ behavior: "smooth" }); });
 elements.closeAdmin.addEventListener("click", () => { elements.adminPanel.hidden = true; });
 elements.refreshProfiles.addEventListener("click", loadProfiles);
+elements.cameraNamesForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  elements.cameraNamesMessage.textContent = "Salvando…";
+  const names = Object.fromEntries([...elements.adminCameraNames.querySelectorAll("input[data-camera-id]")].map((input) => [input.dataset.cameraId, input.value]));
+  try {
+    await window.NeoVisionSettings.saveCameraNames(names);
+    elements.cameraNamesMessage.textContent = "Nomes atualizados para todos os usuários.";
+    renderAdminCameraNames();
+  } catch {
+    elements.cameraNamesMessage.textContent = "Não foi possível salvar. Aplique a atualização do Supabase de teste.";
+  }
+});
 elements.adminSettings.addEventListener("submit", async (event) => {
   event.preventDefault(); elements.adminMessage.textContent = "Salvando…";
   const values = {
@@ -450,8 +536,10 @@ window.NeoVisionSettings.onChange((value) => {
   elements.adminGridLimit.value = String(normalizeGridLimit(settings.systemGridLimit));
   elements.adminAutoPause.checked = settings.autoPauseHidden;
   elements.adminIdleMinutes.value = String(settings.idleMinutes);
+  elements.renameCamera.hidden = settings.role !== "admin";
   if (!settings.multicameraEnabled && viewMode === "grid") setViewMode("single");
-  gridCameraIds = gridCameraIds.slice(0, gridLimit());
+  gridCameraIds = gridCameraIds.filter(canAccessCamera).slice(0, gridLimit());
+  if (!canAccessCamera(selectedCameraId)) selectedCameraId = accessibleCameras()[0]?.id || "";
   renderCameraList(); renderGrid(); selectCamera(selectedCameraId); showStatus();
 });
 

@@ -19,3 +19,17 @@ test("mobile landscape columns do not depend on the CSS has selector", () => {
   assert.match(css, /grid-viewer\[data-count="10"\].*repeat\(4/);
   assert.match(css, /touch-action:pan-x/);
 });
+
+test("fullscreen has a mobile fallback and an exit control", () => {
+  assert.match(app, /webkitRequestFullscreen/);
+  assert.match(app, /data-pseudo-fullscreen/);
+  assert.match(app, /Sair da tela cheia/);
+  assert.match(css, /html\[data-pseudo-fullscreen\] \.viewer-card\{position:fixed/);
+  assert.match(css, /height:100dvh/);
+});
+
+test("camera access is filtered before rendering", () => {
+  assert.match(app, /function accessibleCameras\(\)/);
+  assert.match(app, /gridCameraIds = gridCameraIds\.filter\(canAccessCamera\)/);
+  assert.match(app, /profile-cameras/);
+});

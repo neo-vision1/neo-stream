@@ -1,4 +1,5 @@
 (() => {
+  const ALL_CAMERA_IDS = Array.from({ length: 11 }, (_, index) => `CAM${String(index + 1).padStart(2, "0")}`);
   const defaults = {
     role: "viewer",
     canPtz: false,
@@ -9,6 +10,7 @@
     autoPauseHidden: true,
     idleMinutes: 10,
     cameraNames: {},
+    allowedCameraIds: ALL_CAMERA_IDS,
     gridCameraIds: []
   };
   let state = { ...defaults };
@@ -19,15 +21,16 @@
 
   async function load(session) {
     const generation = ++loadGeneration;
-    let nextState = { ...defaults, cameraNames: {}, gridCameraIds: [] };
+    let nextState = { ...defaults, cameraNames: {}, allowedCameraIds: [...ALL_CAMERA_IDS], gridCameraIds: [] };
     const client = window.NeoVisionAuth.client;
     const userId = session?.user?.id;
     if (!client || !userId) { state = nextState; notify(); return state; }
     try {
-      const [profileResult, settingsResult, namesResult, viewResult] = await Promise.all([
+      const [profileResult, settingsResult, namesResult, accessResult, viewResult] = await Promise.all([
         client.from("profiles").select("role,can_ptz,can_talk,multicamera_limit").eq("id", userId).maybeSingle(),
         client.from("app_settings").select("multicamera_enabled,max_multicamera,auto_pause_hidden,idle_minutes").eq("site_id", "OBRA_001").maybeSingle(),
-        client.from("camera_preferences").select("camera_id,custom_name").eq("user_id", userId),
+        client.from("camera_settings").select("camera_id,display_name").eq("site_id", "OBRA_001"),
+        client.from("profile_camera_access").select("camera_id").eq("user_id", userId),
         client.from("viewer_preferences").select("grid_camera_ids").eq("user_id", userId).maybeSingle()
       ]);
       if (profileResult.data) nextState = {
@@ -46,7 +49,12 @@
         idleMinutes: settingsResult.data.idle_minutes || 10
       };
       if (Array.isArray(namesResult.data)) {
-        nextState.cameraNames = Object.fromEntries(namesResult.data.map((row) => [row.camera_id, row.custom_name]).filter(([, name]) => name));
+        nextState.cameraNames = Object.fromEntries(namesResult.data.map((row) => [row.camera_id, row.display_name]).filter(([, name]) => name));
+      }
+      if (nextState.role === "admin") {
+        nextState.allowedCameraIds = [...ALL_CAMERA_IDS];
+      } else if (!accessResult.error && Array.isArray(accessResult.data)) {
+        nextState.allowedCameraIds = accessResult.data.map((row) => row.camera_id).filter((id) => ALL_CAMERA_IDS.includes(id));
       }
       if (Array.isArray(viewResult.data?.grid_camera_ids)) {
         nextState.gridCameraIds = viewResult.data.grid_camera_ids.filter((id) => /^CAM[0-9]{2}$/.test(id));
@@ -64,9 +72,11 @@
     const client = window.NeoVisionAuth.client;
     const userId = window.NeoVisionAuth.session?.user?.id;
     if (!client || !userId) return state;
-    const [profileResult, settingsResult] = await Promise.all([
+    const [profileResult, settingsResult, namesResult, accessResult] = await Promise.all([
       client.from("profiles").select("role,can_ptz,can_talk,multicamera_limit").eq("id", userId).maybeSingle(),
-      client.from("app_settings").select("multicamera_enabled,max_multicamera,auto_pause_hidden,idle_minutes").eq("site_id", "OBRA_001").maybeSingle()
+      client.from("app_settings").select("multicamera_enabled,max_multicamera,auto_pause_hidden,idle_minutes").eq("site_id", "OBRA_001").maybeSingle(),
+      client.from("camera_settings").select("camera_id,display_name").eq("site_id", "OBRA_001"),
+      client.from("profile_camera_access").select("camera_id").eq("user_id", userId)
     ]);
     if (window.NeoVisionAuth.session?.user?.id !== userId) return state;
     if (profileResult.error || !profileResult.data) throw profileResult.error || new Error("Perfil não encontrado.");
@@ -77,8 +87,14 @@
       role: profile.role || "viewer",
       canPtz: admin || profile.can_ptz === true,
       canTalk: admin || profile.can_talk === true,
-      profileGridLimit: admin ? 11 : (profile.multicamera_limit || 1)
+      profileGridLimit: admin ? 11 : (profile.multicamera_limit || 1),
+      allowedCameraIds: admin ? [...ALL_CAMERA_IDS] : (!accessResult.error && Array.isArray(accessResult.data)
+        ? accessResult.data.map((row) => row.camera_id).filter((id) => ALL_CAMERA_IDS.includes(id))
+        : state.allowedCameraIds)
     };
+    if (!namesResult.error && Array.isArray(namesResult.data)) {
+      state.cameraNames = Object.fromEntries(namesResult.data.map((row) => [row.camera_id, row.display_name]).filter(([, name]) => name));
+    }
     if (settingsResult.data) state = {
       ...state,
       multicameraEnabled: settingsResult.data.multicamera_enabled !== false,
@@ -90,23 +106,35 @@
     return state;
   }
 
-  async function saveCameraName(cameraId, customName) {
+  async function saveCameraNames(cameraNames) {
+    if (state.role !== "admin") throw new Error("Acesso administrativo necessário.");
     const client = window.NeoVisionAuth.client;
-    const userId = window.NeoVisionAuth.session?.user?.id;
-    if (!client || !userId) return false;
-    const name = String(customName || "").trim().slice(0, 60);
-    const { error } = await client.from("camera_preferences").upsert({ user_id: userId, camera_id: cameraId, custom_name: name }, { onConflict: "user_id,camera_id" });
+    if (!client) return false;
+    const rows = ALL_CAMERA_IDS.filter((cameraId) => Object.hasOwn(cameraNames || {}, cameraId)).map((cameraId) => ({
+      site_id: "OBRA_001",
+      camera_id: cameraId,
+      display_name: String(cameraNames[cameraId] || "").trim().slice(0, 60),
+      updated_at: new Date().toISOString()
+    }));
+    if (!rows.length) return false;
+    const { error } = await client.from("camera_settings").upsert(rows, { onConflict: "site_id,camera_id" });
     if (error) throw error;
-    state.cameraNames = { ...state.cameraNames, [cameraId]: name };
+    state.cameraNames = { ...state.cameraNames, ...Object.fromEntries(rows.map((row) => [row.camera_id, row.display_name])) };
     notify();
     return true;
+  }
+
+  async function saveCameraName(cameraId, customName) {
+    if (!ALL_CAMERA_IDS.includes(cameraId)) return false;
+    return saveCameraNames({ [cameraId]: customName });
   }
 
   async function saveGridSelection(cameraIds) {
     const client = window.NeoVisionAuth.client;
     const userId = window.NeoVisionAuth.session?.user?.id;
     if (!client || !userId) return false;
-    const gridCameraIds = [...new Set(cameraIds)].filter((id) => /^CAM[0-9]{2}$/.test(id)).slice(0, 11);
+    const allowed = new Set(state.role === "admin" ? ALL_CAMERA_IDS : state.allowedCameraIds);
+    const gridCameraIds = [...new Set(cameraIds)].filter((id) => allowed.has(id)).slice(0, 11);
     const { error } = await client.from("viewer_preferences").upsert({
       user_id: userId,
       grid_camera_ids: gridCameraIds,
@@ -124,7 +152,16 @@
       .select("id,email,role,can_ptz,can_talk,multicamera_limit,created_at")
       .order("email", { ascending: true });
     if (error) throw error;
-    return data || [];
+    const accessResult = await client.from("profile_camera_access").select("user_id,camera_id");
+    const accessByUser = new Map();
+    if (!accessResult.error) for (const row of accessResult.data || []) {
+      if (!accessByUser.has(row.user_id)) accessByUser.set(row.user_id, []);
+      if (ALL_CAMERA_IDS.includes(row.camera_id)) accessByUser.get(row.user_id).push(row.camera_id);
+    }
+    return (data || []).map((profile) => ({
+      ...profile,
+      allowed_camera_ids: profile.role === "admin" || accessResult.error ? [...ALL_CAMERA_IDS] : (accessByUser.get(profile.id) || [])
+    }));
   }
 
   async function updateProfile(id, values) {
@@ -137,9 +174,15 @@
       can_talk: Boolean(values.canTalk),
       multicamera_limit: [1, 2, 4, 6, 9, 11].includes(Number(values.multicameraLimit)) ? Number(values.multicameraLimit) : 1
     };
+    const allowedCameraIds = payload.role === "admin" ? [...ALL_CAMERA_IDS] : [...new Set(values.allowedCameraIds || [])].filter((cameraId) => ALL_CAMERA_IDS.includes(cameraId));
+    if (!allowedCameraIds.length) throw new Error("Selecione pelo menos uma câmera.");
     const { data, error } = await client.from("profiles").update(payload).eq("id", id).select("id,role,can_ptz,can_talk,multicamera_limit").single();
     if (error) throw error;
     if (!data?.id) throw new Error("O Supabase não confirmou a atualização do perfil.");
+    const { error: deleteAccessError } = await client.from("profile_camera_access").delete().eq("user_id", id);
+    if (deleteAccessError) throw deleteAccessError;
+    const { error: insertAccessError } = await client.from("profile_camera_access").insert(allowedCameraIds.map((cameraId) => ({ user_id: id, camera_id: cameraId })));
+    if (insertAccessError) throw insertAccessError;
     if (payload.multicamera_limit > state.systemGridLimit) {
       const nextSystemLimit = payload.multicamera_limit;
       const { error: settingsError } = await client.from("app_settings").upsert({
@@ -154,7 +197,7 @@
       state = { ...state, systemGridLimit: nextSystemLimit };
       notify();
     }
-    return data;
+    return { ...data, allowed_camera_ids: allowedCameraIds };
   }
 
   async function saveAdminSettings(values) {
@@ -175,8 +218,8 @@
   }
 
   window.NeoVisionSettings = {
-    load, refreshAccess, saveCameraName, saveGridSelection, saveAdminSettings, listProfiles, updateProfile,
+    load, refreshAccess, saveCameraName, saveCameraNames, saveGridSelection, saveAdminSettings, listProfiles, updateProfile,
     onChange(listener) { listeners.add(listener); return () => listeners.delete(listener); },
-    get value() { return { ...state, cameraNames: { ...state.cameraNames } }; }
+    get value() { return { ...state, cameraNames: { ...state.cameraNames }, allowedCameraIds: [...state.allowedCameraIds] }; }
   };
 })();
