@@ -44,6 +44,24 @@ Se o esquema já foi aplicado antes desta atualização, execute o arquivo novam
 
 O valor exibido no painel é uma estimativa local da sessão. A leitura oficial da conta Mux ainda depende de credenciais de API guardadas como segredos no Cloudflare e não deve ser feita diretamente no navegador.
 
+## Alertas de indisponibilidade
+
+O painel Admin permite configurar:
+
+- monitoramento ligado/desligado;
+- prazo de 1, 2, 5, 10 ou 15 minutos;
+- e-mail de destino;
+- alerta de recuperação;
+- alerta único para queda do Agent/internet;
+- histórico das 100 últimas ocorrências;
+- envio de alerta de teste.
+
+As regras evitam repetição: uma câmera gera um aviso ao ultrapassar o prazo e outro somente quando recuperar. Quando o Agent para de comunicar, é emitido um único alerta geral em vez de um alerta para cada câmera.
+
+No Worker de teste, as configurações, o histórico e o botão de teste podem ser validados, mas o estado real das câmeras continua chegando ao Worker de produção. O monitoramento real começa apenas depois da promoção aprovada dessa versão.
+
+Para habilitar o e-mail, primeiro ative o Email Service/Email Routing do domínio na Cloudflare e verifique o destinatário. Depois adicione ao Worker um binding `send_email` chamado `ALERT_EMAIL`, limitado ao endereço verificado. O remetente padrão preparado é `alerts@neovision-es.com.br` e também precisa pertencer a um domínio habilitado para envio. Sem esse binding, os eventos são registrados com o estado `not_configured`, sem tentativa externa.
+
 ## Validação
 
 ```powershell
