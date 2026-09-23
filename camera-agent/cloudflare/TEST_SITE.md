@@ -34,6 +34,8 @@ O ambiente de teste usa o Worker `neo-vision-camera-test` e nunca substitui o Wo
 
 Contas novas entram como `viewer`, sem PTZ e sem falar na câmera. A conta que está usando o painel administrativo não pode alterar a si própria nessa tela, evitando a remoção acidental do único administrador.
 
+O perfil `admin` sempre tem PTZ, áudio e acesso às 11 câmeras, independentemente do limite individual gravado anteriormente. Alterações de acesso são confirmadas pelo Supabase e reaplicadas ao usuário ao entrar, ao voltar para a aba e, enquanto a página estiver visível, a cada 30 segundos. Ao conceder a um usuário um limite multicâmera maior que o limite geral atual, o limite geral é elevado automaticamente; os outros usuários continuam respeitando seus limites individuais.
+
 Se o esquema já foi aplicado antes desta atualização, execute o arquivo novamente. Ele é idempotente e criará `viewer_preferences`, ajustará os padrões seguros e removerá PTZ/áudio dos perfis que ainda são `viewer`.
 
 ## Consumo do Mux
