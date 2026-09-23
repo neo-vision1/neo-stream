@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { heartbeatCameras, parseMessage, validIdentifier, validatePtz, validateTalk } from "./protocol.js";
 import { getSupabasePermissions, supabaseConfigured, verifySupabaseUser } from "./auth.js";
+import { alertText, DEFAULT_ALERT_CONFIG, evaluateAlerts, normalizeAlertConfig } from "./alerts.js";
 
 const HEARTBEAT_MAX_AGE_MS = 30_000;
 
@@ -20,6 +21,19 @@ function send(ws, data) {
   }
 }
 
+async function authEnvironment(env) {
+  if (supabaseConfigured(env)) return env;
+  if (!env.CONTROL_WORKER) return env;
+  try {
+    const response = await env.CONTROL_WORKER.fetch(new Request("https://control.internal/auth-config"));
+    if (!response.ok) return env;
+    const config = await response.json();
+    return { ...env, SUPABASE_URL: config.supabaseUrl, SUPABASE_ANON_KEY: config.supabaseAnonKey };
+  } catch {
+    return env;
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -33,6 +47,19 @@ export default {
       if (env.CONTROL_ORIGIN) return fetch(new Request(new URL("/auth-config", env.CONTROL_ORIGIN), request));
       if (!supabaseConfigured(env)) return json({ error: "Supabase not configured" }, 503, { "cache-control": "no-store" });
       return json({ supabaseUrl: env.SUPABASE_URL, supabaseAnonKey: env.SUPABASE_ANON_KEY }, 200, { "cache-control": "no-store" });
+    }
+
+    const alertMatch = url.pathname.match(/^\/api\/alerts\/([A-Za-z0-9_-]{1,64})(\/test)?$/);
+    if (alertMatch) {
+      const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "";
+      const authEnv = await authEnvironment(env);
+      const user = await verifySupabaseUser(authEnv, token);
+      const permissions = user ? await getSupabasePermissions(authEnv, token, user.id) : null;
+      if (!user || permissions?.role !== "admin") return json({ error: "Admin access required" }, 403);
+      const target = new URL(`/alerts/${alertMatch[1]}${alertMatch[2] || ""}`, "https://durable.internal");
+      const init = { method: request.method, headers: { "content-type": "application/json", "x-neo-admin": "1" } };
+      if (!["GET", "HEAD"].includes(request.method)) init.body = request.body;
+      return env.CAMERA_SITE.getByName(alertMatch[1]).fetch(new Request(target, init));
     }
 
     const match = url.pathname.match(/^\/ws\/([A-Za-z0-9_-]{1,64})$/);
@@ -61,7 +88,10 @@ export class CameraSite extends DurableObject {
   }
 
   async fetch(request) {
-    const siteId = new URL(request.url).pathname.split("/").filter(Boolean).at(-1);
+    const url = new URL(request.url);
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts[0] === "alerts") return this.alertApi(request, parts[1], parts[2]);
+    const siteId = parts.at(-1);
     if (!validIdentifier(siteId)) return json({ error: "Invalid site" }, 400);
 
     const pair = new WebSocketPair();
@@ -69,6 +99,73 @@ export class CameraSite extends DurableObject {
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ authenticated: false, role: null, siteId });
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async alertApi(request, siteId, action) {
+    if (request.headers.get("x-neo-admin") !== "1" || !validIdentifier(siteId)) return json({ error: "Forbidden" }, 403);
+    const config = normalizeAlertConfig((await this.ctx.storage.get("alertConfig")) || DEFAULT_ALERT_CONFIG);
+    const history = (await this.ctx.storage.get("alertHistory")) || [];
+    if (request.method === "GET") return json({ config, history, emailConfigured: Boolean(this.env.ALERT_EMAIL) });
+    if (request.method === "PUT" && !action) {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const next = normalizeAlertConfig(body);
+      await this.ctx.storage.put("alertConfig", next);
+      if (next.enabled) await this.ctx.storage.setAlarm(Date.now() + 5_000);
+      else {
+        await this.ctx.storage.deleteAlarm();
+        await this.ctx.storage.delete("alertState");
+      }
+      return json({ ok: true, config: next, emailConfigured: Boolean(this.env.ALERT_EMAIL) });
+    }
+    if (request.method === "POST" && action === "test") {
+      const event = { kind: "test", occurredAt: Date.now() };
+      const saved = await this.deliverAlert(event, siteId, config);
+      return json({ ok: true, event: saved, emailConfigured: Boolean(this.env.ALERT_EMAIL) });
+    }
+    return json({ error: "Method not allowed" }, 405);
+  }
+
+  async deliverAlert(event, siteId, config) {
+    const content = alertText(event, siteId);
+    let delivery = "not_configured";
+    if (this.env.ALERT_EMAIL && config.recipient) {
+      try {
+        await this.env.ALERT_EMAIL.send({
+          to: config.recipient,
+          from: config.sender,
+          subject: content.subject,
+          text: content.text
+        });
+        delivery = "sent";
+      } catch (error) {
+        delivery = "failed";
+        console.warn("Alert email failed", error?.code || "email_error");
+      }
+    }
+    const saved = { id: crypto.randomUUID(), ...event, siteId, delivery };
+    const history = (await this.ctx.storage.get("alertHistory")) || [];
+    await this.ctx.storage.put("alertHistory", [saved, ...history].slice(0, 100));
+    this.broadcast("operator", { type: "alert_event", event: saved });
+    return saved;
+  }
+
+  async processAlerts(siteId) {
+    const config = normalizeAlertConfig((await this.ctx.storage.get("alertConfig")) || DEFAULT_ALERT_CONFIG);
+    if (!config.enabled) return;
+    const status = (await this.ctx.storage.get("status")) || {};
+    const previous = (await this.ctx.storage.get("alertState")) || {};
+    const result = evaluateAlerts({ now: Date.now(), status, config, previous });
+    await this.ctx.storage.put("alertState", result.state);
+    for (const event of result.events) await this.deliverAlert(event, siteId, config);
+  }
+
+  async alarm() {
+    const config = normalizeAlertConfig((await this.ctx.storage.get("alertConfig")) || DEFAULT_ALERT_CONFIG);
+    if (!config.enabled) return;
+    const siteId = (await this.ctx.storage.get("siteId")) || "OBRA_001";
+    try { await this.processAlerts(siteId); }
+    finally { await this.ctx.storage.setAlarm(Date.now() + 60_000); }
   }
 
   connections(role, excludedSocket = null) {
@@ -129,6 +226,7 @@ export class CameraSite extends DurableObject {
       agentId: role === "agent" && validIdentifier(message.agentId) ? message.agentId : null
     };
     ws.serializeAttachment(next);
+    await this.ctx.storage.put("siteId", next.siteId);
     send(ws, { type: "auth_ok", role, siteId: next.siteId, permissions: role === "operator" ? { canPtz: next.canPtz, canTalk: next.canTalk } : undefined });
     if (role === "operator") send(ws, await this.currentStatus(next.siteId));
   }
@@ -157,6 +255,7 @@ export class CameraSite extends DurableObject {
         lastHeartbeat: Date.now()
       };
       await this.ctx.storage.put("status", status);
+      await this.processAlerts(attachment.siteId);
       this.broadcast("operator", await this.currentStatus(attachment.siteId));
       return;
     }
