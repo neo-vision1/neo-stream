@@ -29,6 +29,7 @@ export default {
     }
 
     if (url.pathname === "/auth-config") {
+      if (env.CONTROL_WORKER) return env.CONTROL_WORKER.fetch(request);
       if (env.CONTROL_ORIGIN) return fetch(new Request(new URL("/auth-config", env.CONTROL_ORIGIN), request));
       if (!supabaseConfigured(env)) return json({ error: "Supabase not configured" }, 503, { "cache-control": "no-store" });
       return json({ supabaseUrl: env.SUPABASE_URL, supabaseAnonKey: env.SUPABASE_ANON_KEY }, 200, { "cache-control": "no-store" });
@@ -39,6 +40,7 @@ export default {
       if (request.method !== "GET" || request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
         return json({ error: "WebSocket upgrade required" }, 426);
       }
+      if (env.CONTROL_WORKER) return env.CONTROL_WORKER.fetch(request);
       if (env.CONTROL_ORIGIN) {
         const target = new URL(url.pathname, env.CONTROL_ORIGIN);
         return fetch(new Request(target, request));
