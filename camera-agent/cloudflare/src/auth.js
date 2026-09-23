@@ -48,11 +48,13 @@ export async function getSupabasePermissions(env, accessToken, userId, fetchImpl
     const rows = await response.json();
     const profile = Array.isArray(rows) ? rows[0] : null;
     if (!profile) return null;
+    const role = ["admin", "operator", "viewer"].includes(profile.role) ? profile.role : "viewer";
+    const admin = role === "admin";
     return {
-      role: ["admin", "operator", "viewer"].includes(profile.role) ? profile.role : "viewer",
-      canPtz: profile.can_ptz === true,
-      canTalk: profile.can_talk === true,
-      multicameraLimit: [1, 2, 4, 6, 9, 11].includes(Number(profile.multicamera_limit)) ? Number(profile.multicamera_limit) : 1
+      role,
+      canPtz: admin || profile.can_ptz === true,
+      canTalk: admin || profile.can_talk === true,
+      multicameraLimit: admin ? 11 : ([1, 2, 4, 6, 9, 11].includes(Number(profile.multicamera_limit)) ? Number(profile.multicamera_limit) : 1)
     };
   } catch {
     return null;
