@@ -6,7 +6,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/ws/*", "/health", "/auth-config"]
+    "run_worker_first": ["/ws/*", "/api/*", "/health", "/auth-config"]
   },
   "durable_objects": {
     "bindings": [
