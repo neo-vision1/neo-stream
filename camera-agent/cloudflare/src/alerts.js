@@ -4,7 +4,7 @@ export const DEFAULT_ALERT_CONFIG = Object.freeze({
   recoveryEnabled: true,
   agentAlertsEnabled: true,
   recipient: "",
-  sender: "alerts@neovision-es.com.br"
+  sender: "neovisiondrone@gmail.com"
 });
 
 export function normalizeAlertConfig(value = {}) {

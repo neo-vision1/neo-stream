@@ -5,7 +5,7 @@ import { evaluateAlerts, normalizeAlertConfig } from "../src/alerts.js";
 test("normalizes alert configuration safely", () => {
   assert.deepEqual(normalizeAlertConfig({ enabled: true, offlineMinutes: 2, recipient: " admin@example.com " }), {
     enabled: true, offlineMinutes: 2, recoveryEnabled: true, agentAlertsEnabled: true,
-    recipient: "admin@example.com", sender: "alerts@neovision-es.com.br"
+    recipient: "admin@example.com", sender: "neovisiondrone@gmail.com"
   });
 });
 
