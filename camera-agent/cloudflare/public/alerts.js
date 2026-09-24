@@ -50,7 +50,7 @@
       elements.recipient.value = config.recipient || "";
       elements.recovery.checked = config.recoveryEnabled !== false;
       elements.agent.checked = config.agentAlertsEnabled !== false;
-      elements.message.textContent = data.emailConfigured ? "Envio por e-mail configurado na Cloudflare." : "Monitoramento disponível; o envio por e-mail ainda não foi configurado na Cloudflare.";
+      elements.message.textContent = data.emailConfigured ? "Envio por e-mail configurado no Brevo." : "Monitoramento disponível; falta salvar BREVO_API_KEY no Worker de teste.";
       renderHistory(data.history);
     } catch (error) { elements.message.textContent = error.message; }
   }
@@ -66,7 +66,7 @@
         recoveryEnabled: elements.recovery.checked,
         agentAlertsEnabled: elements.agent.checked
       }) });
-      elements.message.textContent = data.emailConfigured ? "Configurações salvas e envio habilitado." : "Configurações salvas. Falta configurar o envio de e-mail na Cloudflare.";
+      elements.message.textContent = data.emailConfigured ? "Configurações salvas e envio pelo Brevo habilitado." : "Configurações salvas. Falta salvar BREVO_API_KEY no Worker de teste.";
     } catch (error) { elements.message.textContent = error.message; }
   });
 
