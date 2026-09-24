@@ -73,6 +73,11 @@ Antes de publicar para todos os usuários, execute `python test_im7_onvif.py`.
 O utilitário pede confirmação antes de cada ação, move e aproxima por somente
 0,3 segundo e sempre envia STOP ao terminar.
 
+Para preparar somente o notebook no ambiente de teste, sem publicar novamente
+o Cloudflare, execute `update_agent_im7_test.ps1`. Ele cria um backup do
+`config.json`, pede a chave da etiqueta em prompt protegido, configura a CAM11
+em `192.168.1.108` e instala a dependência ONVIF.
+
 O formato antigo com uma propriedade `camera` continua aceito durante a migração. Para múltiplas câmeras, use o formato `cameraDefaults` + `cameras` de `agent/config.example.json`.
 
 ## 3. Vídeo Mux no mesmo painel
