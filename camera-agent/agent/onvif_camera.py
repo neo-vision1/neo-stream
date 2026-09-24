@@ -29,23 +29,29 @@ class OnvifCamera:
             return
         if ONVIFCamera is None:
             raise RuntimeError("Instale as dependências do Agent para habilitar ONVIF")
-        self.camera = ONVIFCamera(
+        camera = ONVIFCamera(
             self.config["ip"], int(self.config.get("onvifPort", 80)),
             self.config.get("username", "admin"), self.config["password"],
             adjust_time=bool(self.config.get("onvifAdjustTime", False)), no_cache=True,
         )
-        await self.camera.update_xaddrs()
-        media = self.camera.create_media_service()
-        self.ptz = self.camera.create_ptz_service()
-        self.device = self.camera.devicemgmt
-        profiles = await media.GetProfiles()
-        usable = [profile for profile in profiles if getattr(profile, "PTZConfiguration", None)] or list(profiles)
-        if not usable:
-            raise RuntimeError("A câmera ONVIF não informou perfis de mídia")
-        index = min(int(self.config.get("onvifProfileIndex", 0)), len(usable) - 1)
-        self.profile_token = usable[index].token
-        nodes = await self.ptz.GetNodes()
-        spaces = getattr(nodes[0], "SupportedPTZSpaces", None) if nodes else None
+        try:
+            await camera.update_xaddrs()
+            media = await camera.create_media_service()
+            ptz = await camera.create_ptz_service()
+            device = await camera.create_devicemgmt_service()
+            profiles = await media.GetProfiles()
+            usable = [profile for profile in profiles if getattr(profile, "PTZConfiguration", None)] or list(profiles)
+            if not usable:
+                raise RuntimeError("A câmera ONVIF não informou perfis de mídia")
+            index = min(int(self.config.get("onvifProfileIndex", 0)), len(usable) - 1)
+            profile_token = usable[index].token
+            nodes = await ptz.GetNodes()
+            spaces = getattr(nodes[0], "SupportedPTZSpaces", None) if nodes else None
+        except Exception:
+            await camera.close()
+            raise
+        self.camera, self.ptz, self.device = camera, ptz, device
+        self.profile_token = profile_token
         self.supports_zoom = bool(getattr(spaces, "ContinuousZoomVelocitySpace", None))
         if self.config.get("supportsZoom") is False:
             self.supports_zoom = False
@@ -57,9 +63,17 @@ class OnvifCamera:
             return True
         except Exception as exc:
             logging.warning("Câmera ONVIF %s indisponível: %s", self.config.get("id"), exc)
-            self.camera = self.ptz = self.device = self.profile_token = None
+            await self._discard_camera()
             self.supports_zoom = False
             return False
+
+    async def _discard_camera(self):
+        camera = self.camera
+        self.camera = self.ptz = self.device = self.profile_token = None
+        if camera:
+            result = camera.close()
+            if inspect.isawaitable(result):
+                await result
 
     def _schedule_stop(self):
         if self._stop_task:
@@ -109,6 +123,4 @@ class OnvifCamera:
                 await self.stop()
         finally:
             if self.camera:
-                result = self.camera.close()
-                if inspect.isawaitable(result):
-                    await result
+                await self._discard_camera()

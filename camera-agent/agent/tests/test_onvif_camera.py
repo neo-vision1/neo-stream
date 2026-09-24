@@ -17,9 +17,11 @@ class OnvifCameraTests(unittest.IsolatedAsyncioTestCase):
         self.media = SimpleNamespace(GetProfiles=AsyncMock(return_value=[SimpleNamespace(token="profile-1", PTZConfiguration=object())]))
         self.device = SimpleNamespace(GetDeviceInformation=AsyncMock(return_value={"Model": "iM7+"}))
         instance = SimpleNamespace(
-            update_xaddrs=AsyncMock(), create_media_service=lambda: self.media,
-            create_ptz_service=lambda: self.ptz, devicemgmt=self.device, close=AsyncMock()
+            update_xaddrs=AsyncMock(), create_media_service=AsyncMock(return_value=self.media),
+            create_ptz_service=AsyncMock(return_value=self.ptz),
+            create_devicemgmt_service=AsyncMock(return_value=self.device), close=AsyncMock()
         )
+        self.instance = instance
         self.factory = patch("onvif_camera.ONVIFCamera", return_value=instance)
         self.factory.start()
         self.camera = OnvifCamera({"id": "CAM11", "ip": "192.168.1.20", "username": "admin", "password": "secret"}, 10)
@@ -33,6 +35,9 @@ class OnvifCameraTests(unittest.IsolatedAsyncioTestCase):
     async def test_detects_zoom_and_sends_continuous_zoom(self):
         self.assertTrue(await self.camera.check_online())
         self.assertTrue(self.camera.supports_zoom)
+        self.instance.create_media_service.assert_awaited_once()
+        self.instance.create_ptz_service.assert_awaited_once()
+        self.instance.create_devicemgmt_service.assert_awaited_once()
         await self.camera.zoom("in", 4)
         request = self.ptz.ContinuousMove.await_args.args[0]
         self.assertEqual(request["ProfileToken"], "profile-1")
