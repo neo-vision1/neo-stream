@@ -10,7 +10,7 @@ window.NEO_VISION_CAMERAS = [
   { id: "CAM08", name: "Câmera 08", playbackId: "FDRha93So9aJqlLL1CFiNsvbswd2i15AMjoBfOmmANk" },
   { id: "CAM09", name: "Câmera 09", playbackId: "HKjIVinaXpA4wsUq6EGsjZZGkMVLBU00Kr02U88IWArD00" },
   { id: "CAM10", name: "Câmera 10", playbackId: "A7lDaiz4OBiRXT80000Q00XuwOCzkmnQkfPErXYrDag8F00" },
-  { id: "CAM11", name: "Câmera 11", playbackId: "tRyLTmxi5ULAipeVEIPc3F7BcfClwvcYzL54DZWhWck" }
+  { id: "CAM11", name: "iM7+ Zoom Full Color", playbackId: "tRyLTmxi5ULAipeVEIPc3F7BcfClwvcYzL54DZWhWck" }
 ];
 
 window.NEO_VISION_DRONES = [

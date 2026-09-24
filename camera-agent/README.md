@@ -30,7 +30,7 @@ cd cloudflare
 
 O script configura `AGENT_TOKEN`, `SUPABASE_URL` e `SUPABASE_ANON_KEY` no Cloudflare e publica o painel, Worker e Durable Object. Veja [as instruções completas](cloudflare/DEPLOY_CLOUDFLARE.md).
 
-Para atualizar uma instalação existente da Neo Vision com os dez IPs já conhecidos e os 11 Playback IDs, pare o Agent e execute `upgrade_known_cameras.ps1` na raiz de `camera-agent`. O script cria backup do `config.json`, preserva os segredos locais, atualiza os arquivos e executa `wrangler deploy`. A CAM11 permanece somente com vídeo até o IP local ser informado.
+Para atualizar uma instalação existente da Neo Vision com os IPs conhecidos e os 11 Playback IDs, pare o Agent e execute `upgrade_known_cameras.ps1` na raiz de `camera-agent`. O script cria backup do `config.json`, preserva os segredos locais, atualiza os arquivos e executa `wrangler deploy`. A CAM11 é a iM7+ Zoom Full Color no IP local `192.168.1.108` e requer credenciais ONVIF próprias no `config.json`.
 
 ## 2. Agent no notebook da câmera
 

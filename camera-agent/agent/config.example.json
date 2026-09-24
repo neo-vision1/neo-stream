@@ -32,7 +32,7 @@
     {
       "id": "CAM11",
       "name": "iM7+ Zoom Full Color",
-      "ip": "192.168.15.26",
+      "ip": "192.168.1.108",
       "ptzProtocol": "onvif",
       "onvifPort": 80,
       "username": "admin",

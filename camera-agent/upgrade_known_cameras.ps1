@@ -28,6 +28,15 @@ if (-not $ptzCodes) {
     $ptzCodes = [ordered]@{ up = "Up"; down = "Down"; left = "Left"; right = "Right" }
 }
 
+$existingCam11 = @($current.cameras | Where-Object { $_.id -eq "CAM11" }) | Select-Object -First 1
+$im7Password = $existingCam11.password
+if (-not $im7Password -or $im7Password -eq $sourceCamera.password) {
+    $secureIm7Password = Read-Host "Chave de acesso da etiqueta da iM7+ (CAM11)" -AsSecureString
+    $im7Credential = New-Object System.Management.Automation.PSCredential("admin", $secureIm7Password)
+    $im7Password = $im7Credential.GetNetworkCredential().Password
+}
+if (-not $im7Password) { throw "A chave de acesso da iM7+ é obrigatória" }
+
 $newConfig = [ordered]@{
     server = $current.server
     siteId = $current.siteId
@@ -54,6 +63,7 @@ $newConfig = [ordered]@{
         [ordered]@{ id = "CAM08"; name = "Câmera 08"; ip = "192.168.1.12" }
         [ordered]@{ id = "CAM09"; name = "Câmera 09"; ip = "192.168.1.22" }
         [ordered]@{ id = "CAM10"; name = "Câmera 10"; ip = "192.168.1.14" }
+        [ordered]@{ id = "CAM11"; name = "iM7+ Zoom Full Color"; ip = "192.168.1.108"; ptzProtocol = "onvif"; onvifPort = 80; username = "admin"; password = $im7Password; supportsZoom = $true }
     )
 }
 
@@ -61,7 +71,7 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $json = $newConfig | ConvertTo-Json -Depth 10
 [System.IO.File]::WriteAllText($configPath, $json, $utf8NoBom)
 
-$agentFiles = @("agent.py", "intelbras_camera.py", "media_relay.py", "test_camera.py")
+$agentFiles = @("agent.py", "intelbras_camera.py", "onvif_camera.py", "media_relay.py", "test_camera.py", "test_im7_onvif.py", "requirements.txt")
 foreach ($file in $agentFiles) {
     $destination = Join-Path $agentDir $file
     & curl.exe -L "$rawBase/agent/$file" -o $destination
@@ -104,11 +114,12 @@ try {
 Write-Host ""
 Write-Host "Atualização concluída." -ForegroundColor Green
 Write-Host "Backup: $backupPath"
-Write-Host "Câmeras com PTZ: CAM01, CAM02, CAM03, CAM04, CAM05, CAM06, CAM07, CAM08, CAM09 e CAM10"
-Write-Host "Pendente de IP: CAM11"
+Write-Host "Câmeras com PTZ: CAM01 a CAM11; CAM11 usa ONVIF no IP 192.168.1.108"
 Write-Host "Iniciando o Agent. Mantenha esta janela aberta." -ForegroundColor Cyan
 Push-Location $agentDir
 try {
+    python -m pip install -r .\requirements.txt
+    if ($LASTEXITCODE -ne 0) { throw "A instalação das dependências do Agent falhou." }
     python .\agent.py
 } finally {
     Pop-Location
