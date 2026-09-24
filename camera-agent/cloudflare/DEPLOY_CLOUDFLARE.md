@@ -18,6 +18,16 @@ O Wrangler abrirá o navegador para autorizar a conta Cloudflare, publicará o s
 
 O token do Agent deve ser longo e aleatório. A URL e a chave pública do Supabase podem aparecer no navegador, mas ficam configuradas no Cloudflare e não precisam ser gravadas no repositório. Nunca use a chave `service_role` no painel.
 
+## E-mail de alerta com Brevo
+
+Valide no Brevo o endereço que será usado como remetente e crie uma chave de API. Salve a chave diretamente como secret do Worker, sem colocá-la em arquivo:
+
+```powershell
+npx wrangler secret put BREVO_API_KEY
+```
+
+Depois da publicação, abra **Admin > Alertas**, informe o endereço validado no campo **Remetente**, informe o destinatário e use **Enviar teste**. O envio pelo Brevo não exige domínio configurado na Cloudflare.
+
 No Supabase, mantenha o cadastro público desativado e crie os operadores em **Authentication → Users**. Somente usuários criados pela Neo Vision conseguem entrar.
 
 ## Configurar o notebook

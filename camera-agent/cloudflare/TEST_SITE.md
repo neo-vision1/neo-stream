@@ -62,7 +62,14 @@ As regras evitam repetição: uma câmera gera um aviso ao ultrapassar o prazo e
 
 No Worker de teste, as configurações, o histórico e o botão de teste podem ser validados, mas o estado real das câmeras continua chegando ao Worker de produção. O monitoramento real começa apenas depois da promoção aprovada dessa versão.
 
-Para habilitar o e-mail, primeiro ative o Email Service/Email Routing do domínio na Cloudflare e verifique o destinatário. Depois adicione ao Worker um binding `send_email` chamado `ALERT_EMAIL`, limitado ao endereço verificado. O remetente padrão preparado é `alerts@neovision-es.com.br` e também precisa pertencer a um domínio habilitado para envio. Sem esse binding, os eventos são registrados com o estado `not_configured`, sem tentativa externa.
+O envio usa a API transacional do Brevo e não depende de Email Routing nem de domínio na Cloudflare. No Brevo, valide o endereço que será usado como remetente e crie uma chave de API. Salve a chave apenas como secret do Worker:
+
+```powershell
+cd camera-agent\cloudflare
+npx wrangler secret put BREVO_API_KEY --config wrangler.test.jsonc
+```
+
+Depois publique o Worker e, em **Admin > Alertas**, preencha **Remetente** com exatamente o endereço validado no Brevo. Nunca grave a chave no repositório, no navegador ou em um arquivo de configuração. Sem o secret `BREVO_API_KEY`, os eventos são registrados com o estado `not_configured`, sem tentativa externa.
 
 ## Validação
 

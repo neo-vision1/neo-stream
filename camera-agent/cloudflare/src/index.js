@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import { heartbeatCameras, heartbeatCapabilities, parseMessage, validIdentifier, validatePtz, validateTalk } from "./protocol.js";
 import { getSupabasePermissions, supabaseConfigured, verifySupabaseUser } from "./auth.js";
 import { alertText, DEFAULT_ALERT_CONFIG, evaluateAlerts, normalizeAlertConfig } from "./alerts.js";
+import { brevoConfigured, sendBrevoEmail } from "./email.js";
 
 const HEARTBEAT_MAX_AGE_MS = 30_000;
 
@@ -39,7 +40,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      return json({ ok: true, service: "neo-vision-camera", features: { emailAlerts: Boolean(env.ALERT_EMAIL) } });
+      return json({ ok: true, service: "neo-vision-camera", features: { emailAlerts: brevoConfigured(env) } });
     }
 
     if (url.pathname === "/auth-config") {
@@ -105,7 +106,7 @@ export class CameraSite extends DurableObject {
     if (request.headers.get("x-neo-admin") !== "1" || !validIdentifier(siteId)) return json({ error: "Forbidden" }, 403);
     const config = normalizeAlertConfig((await this.ctx.storage.get("alertConfig")) || DEFAULT_ALERT_CONFIG);
     const history = (await this.ctx.storage.get("alertHistory")) || [];
-    if (request.method === "GET") return json({ config, history, emailConfigured: Boolean(this.env.ALERT_EMAIL) });
+    if (request.method === "GET") return json({ config, history, emailConfigured: brevoConfigured(this.env) });
     if (request.method === "PUT" && !action) {
       let body;
       try { body = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
@@ -116,12 +117,12 @@ export class CameraSite extends DurableObject {
         await this.ctx.storage.deleteAlarm();
         await this.ctx.storage.delete("alertState");
       }
-      return json({ ok: true, config: next, emailConfigured: Boolean(this.env.ALERT_EMAIL) });
+      return json({ ok: true, config: next, emailConfigured: brevoConfigured(this.env) });
     }
     if (request.method === "POST" && action === "test") {
       const event = { kind: "test", occurredAt: Date.now() };
       const saved = await this.deliverAlert(event, siteId, config);
-      return json({ ok: true, event: saved, emailConfigured: Boolean(this.env.ALERT_EMAIL) });
+      return json({ ok: true, event: saved, emailConfigured: brevoConfigured(this.env) });
     }
     return json({ error: "Method not allowed" }, 405);
   }
@@ -129,9 +130,9 @@ export class CameraSite extends DurableObject {
   async deliverAlert(event, siteId, config) {
     const content = alertText(event, siteId);
     let delivery = "not_configured";
-    if (this.env.ALERT_EMAIL && config.recipient) {
+    if (brevoConfigured(this.env) && config.recipient) {
       try {
-        await this.env.ALERT_EMAIL.send({
+        await sendBrevoEmail(this.env, {
           to: config.recipient,
           from: config.sender,
           subject: content.subject,
@@ -140,7 +141,7 @@ export class CameraSite extends DurableObject {
         delivery = "sent";
       } catch (error) {
         delivery = "failed";
-        console.warn("Alert email failed", error?.code || "email_error");
+        console.warn("Alert email failed", error?.code || "brevo_error");
       }
     }
     const saved = { id: crypto.randomUUID(), ...event, siteId, delivery };
