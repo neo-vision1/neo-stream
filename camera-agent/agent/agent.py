@@ -8,6 +8,7 @@ from pathlib import Path
 
 import websockets
 from intelbras_camera import IntelbrasCamera
+from onvif_camera import OnvifCamera
 from intelbras_talk import DahuaTalkSession
 from media_relay import MediaRelaySupervisor
 
@@ -124,18 +125,25 @@ class TalkController:
 async def heartbeat(ws, config, cameras):
     while True:
         statuses = await asyncio.gather(*(
-            asyncio.to_thread(camera.check_online) for camera in cameras.values()
+            camera_call(camera, "check_online") for camera in cameras.values()
         ))
         await ws.send(json.dumps({
             "type": "heartbeat",
             "agentId": config["agentId"],
             "siteId": config["siteId"],
             "cameras": [
-                {"cameraId": camera_id, "cameraOnline": online}
-                for camera_id, online in zip(cameras, statuses)
+                {"cameraId": camera_id, "cameraOnline": online, "supportsZoom": bool(getattr(camera, "supports_zoom", False))}
+                for (camera_id, camera), online in zip(cameras.items(), statuses)
             ]
         }))
         await asyncio.sleep(float(config.get("heartbeatSeconds", 10)))
+
+
+async def camera_call(camera, method, *args):
+    function = getattr(camera, method)
+    if getattr(camera, "async_native", False):
+        return await function(*args)
+    return await asyncio.to_thread(function, *args)
 
 
 async def run_session(config, cameras, talk):
@@ -191,10 +199,13 @@ async def run_session(config, cameras, talk):
                     continue
                 try:
                     if message.get("command") == "move":
-                        await asyncio.to_thread(camera.move, message.get("direction", ""), message.get("speed", 5))
+                        await camera_call(camera, "move", message.get("direction", ""), message.get("speed", 5))
                         logging.info("%s MOVE %s", camera_id, message.get("direction", "").upper())
+                    elif message.get("command") == "zoom":
+                        await camera_call(camera, "zoom", message.get("direction", ""), message.get("speed", 4))
+                        logging.info("%s ZOOM %s", camera_id, message.get("direction", "").upper())
                     elif message.get("command") == "stop":
-                        await asyncio.to_thread(camera.stop)
+                        await camera_call(camera, "stop")
                         logging.info("%s STOP", camera_id)
                     else:
                         raise ValueError("Comando desconhecido")
@@ -208,7 +219,7 @@ async def run_session(config, cameras, talk):
             talk_watchdog.cancel()
             await talk.stop()
             await asyncio.gather(*(
-                asyncio.to_thread(camera.stop, True) for camera in cameras.values()
+                camera_call(camera, "close" if getattr(camera, "async_native", False) else "stop") for camera in cameras.values()
             ))
 
 
@@ -216,10 +227,10 @@ async def main():
     setup_logging()
     config = load_config()
     configs = camera_configs(config)
-    cameras = {
-        camera_config["id"]: IntelbrasCamera(camera_config, config.get("movementTimeoutSeconds", 2))
-        for camera_config in configs
-    }
+    cameras = {}
+    for camera_config in configs:
+        controller = OnvifCamera if camera_config.get("ptzProtocol", "cgi").lower() == "onvif" else IntelbrasCamera
+        cameras[camera_config["id"]] = controller(camera_config, config.get("movementTimeoutSeconds", 2))
     settings = {camera["id"]: camera for camera in configs}
     talk = TalkController(settings)
     relay = MediaRelaySupervisor(configs, load_mux_keys(), app_dir() / "logs", config.get("ffmpegPath", "ffmpeg"))

@@ -1,4 +1,5 @@
 export const DIRECTIONS = new Set(["up", "down", "left", "right"]);
+export const ZOOM_DIRECTIONS = new Set(["in", "out"]);
 
 export function parseMessage(raw) {
   try {
@@ -18,13 +19,15 @@ export function validatePtz(message) {
   if (message.command === "stop") {
     return { type: "ptz", cameraId: message.cameraId, command: "stop" };
   }
-  if (message.command !== "move" || !DIRECTIONS.has(message.direction)) return null;
+  const validMove = message.command === "move" && DIRECTIONS.has(message.direction);
+  const validZoom = message.command === "zoom" && ZOOM_DIRECTIONS.has(message.direction);
+  if (!validMove && !validZoom) return null;
   const speed = Number.isInteger(message.speed) ? message.speed : 4;
   if (speed < 1 || speed > 8) return null;
   return {
     type: "ptz",
     cameraId: message.cameraId,
-    command: "move",
+    command: message.command,
     direction: message.direction,
     speed
   };
@@ -50,4 +53,13 @@ export function heartbeatCameras(message) {
     cameras[message.cameraId] = Boolean(message.cameraOnline);
   }
   return cameras;
+}
+
+export function heartbeatCapabilities(message) {
+  const capabilities = {};
+  if (!Array.isArray(message?.cameras)) return capabilities;
+  for (const camera of message.cameras) {
+    if (validIdentifier(camera?.cameraId)) capabilities[camera.cameraId] = { supportsZoom: camera.supportsZoom === true };
+  }
+  return capabilities;
 }

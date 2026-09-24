@@ -1,3 +1,4 @@
 requests>=2.33,<3
 websockets==14.2
+onvif-zeep-async==4.2.1
 pyinstaller==6.22.3

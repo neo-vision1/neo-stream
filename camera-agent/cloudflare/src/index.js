@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { heartbeatCameras, parseMessage, validIdentifier, validatePtz, validateTalk } from "./protocol.js";
+import { heartbeatCameras, heartbeatCapabilities, parseMessage, validIdentifier, validatePtz, validateTalk } from "./protocol.js";
 import { getSupabasePermissions, supabaseConfigured, verifySupabaseUser } from "./auth.js";
 import { alertText, DEFAULT_ALERT_CONFIG, evaluateAlerts, normalizeAlertConfig } from "./alerts.js";
 
@@ -183,7 +183,8 @@ export class CameraSite extends DurableObject {
     const storedCameras = state.cameras || (state.cameraId ? { [state.cameraId]: Boolean(state.cameraOnline) } : {});
     const cameras = Object.entries(storedCameras).map(([cameraId, cameraOnline]) => ({
       cameraId,
-      cameraOnline: agentOnline && Boolean(cameraOnline)
+      cameraOnline: agentOnline && Boolean(cameraOnline),
+      supportsZoom: state.capabilities?.[cameraId]?.supportsZoom === true
     }));
     return {
       type: "status",
@@ -271,6 +272,7 @@ export class CameraSite extends DurableObject {
     if (attachment.role === "agent" && message.type === "heartbeat") {
       const status = {
         cameras: heartbeatCameras(message),
+        capabilities: heartbeatCapabilities(message),
         lastHeartbeat: Date.now()
       };
       await this.ctx.storage.put("status", status);

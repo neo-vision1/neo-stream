@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { heartbeatCameras, parseMessage, validIdentifier, validatePtz, validateTalk } from "../src/protocol.js";
+import { heartbeatCameras, heartbeatCapabilities, parseMessage, validIdentifier, validatePtz, validateTalk } from "../src/protocol.js";
 
 test("parses only JSON objects", () => {
   assert.deepEqual(parseMessage('{"type":"auth"}'), { type: "auth" });
@@ -21,12 +21,24 @@ test("accepts safe PTZ commands", () => {
   assert.deepEqual(validatePtz({ type: "ptz", cameraId: "CAM01", command: "stop" }), {
     type: "ptz", cameraId: "CAM01", command: "stop"
   });
+  assert.deepEqual(validatePtz({ type: "ptz", cameraId: "CAM11", command: "zoom", direction: "in", speed: 3 }), {
+    type: "ptz", cameraId: "CAM11", command: "zoom", direction: "in", speed: 3
+  });
 });
 
 test("rejects unsafe PTZ commands", () => {
   assert.equal(validatePtz({ type: "ptz", cameraId: "CAM01", command: "move", direction: "zoom" }), null);
   assert.equal(validatePtz({ type: "ptz", cameraId: "CAM01", command: "move", direction: "up", speed: 99 }), null);
   assert.equal(validatePtz({ type: "ptz", cameraId: "../x", command: "stop" }), null);
+  assert.equal(validatePtz({ type: "ptz", cameraId: "CAM01", command: "zoom", direction: "left" }), null);
+});
+
+test("normalizes advertised camera capabilities", () => {
+  assert.deepEqual(heartbeatCapabilities({ cameras: [
+    { cameraId: "CAM11", supportsZoom: true },
+    { cameraId: "CAM01", supportsZoom: false },
+    { cameraId: "../x", supportsZoom: true }
+  ] }), { CAM11: { supportsZoom: true }, CAM01: { supportsZoom: false } });
 });
 
 test("validates bounded talk messages", () => {

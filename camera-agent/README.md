@@ -14,7 +14,7 @@ Oracle e Vercel não são necessários. Cada câmera envia o vídeo por RTMP ao 
 - Durable Object por local, com hibernação WebSocket.
 - Um único painel responsivo com opções Câmeras e Drone, vídeo Mux, grade mista e controles PTZ para as câmeras.
 - Login por e-mail e senha com Supabase Auth; o Worker valida a sessão antes de aceitar comandos PTZ.
-- Agent Python com HTTP Digest para a câmera.
+- Agent Python com CGI/Digest para modelos legados e ONVIF para a iM7+ Zoom Full Color.
 - Heartbeat individual das câmeras, reconexão automática e estado online/offline.
 - STOP ao soltar/sair do botão e timeout local de 2 segundos.
 - Testes automatizados e script para gerar `.exe` no Windows.
@@ -55,6 +55,23 @@ Preencha `config.json` com:
 - `channel: 1`, confirmado para o modelo Intelbras testado.
 
 O arquivo `config.json` é ignorado pelo Git e deve ficar apenas no notebook.
+
+### iM7+ Zoom Full Color (PTZ e zoom)
+
+Na entrada da câmera correspondente, use `"ptzProtocol": "onvif"`, porta
+`onvifPort` (normalmente 80), usuário `admin` e a chave de acesso impressa na
+etiqueta como senha. Ative ONVIF no aplicativo/configuração da câmera, se essa
+opção aparecer, e reserve um IP fixo no roteador. Não envie essa chave ao site,
+ao Cloudflare ou ao GitHub.
+
+O Agent consulta as capacidades ONVIF da câmera. Os botões `Zoom −` e
+`Zoom +` só ficam ativos quando a câmera selecionada está online e anuncia
+zoom contínuo. O STOP interrompe simultaneamente pan, tilt e zoom, e o timeout
+local continua protegendo contra movimento preso após perda de conexão.
+
+Antes de publicar para todos os usuários, execute `python test_im7_onvif.py`.
+O utilitário pede confirmação antes de cada ação, move e aproxima por somente
+0,3 segundo e sempre envia STOP ao terminar.
 
 O formato antigo com uma propriedade `camera` continua aceito durante a migração. Para múltiplas câmeras, use o formato `cameraDefaults` + `cameras` de `agent/config.example.json`.
 

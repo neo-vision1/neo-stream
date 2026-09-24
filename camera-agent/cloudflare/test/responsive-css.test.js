@@ -4,6 +4,14 @@ import { readFile } from "node:fs/promises";
 
 const css = await readFile(new URL("../public/style.css", import.meta.url), "utf8");
 const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
+const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+
+test("offers capability-gated ONVIF zoom controls", () => {
+  assert.match(html, /data-zoom="out"/);
+  assert.match(html, /data-zoom="in"/);
+  assert.match(app, /supportsZoom === true/);
+  assert.match(app, /command: "zoom"/);
+});
 
 test("mobile landscape grid separates videos from the camera rail", () => {
   assert.match(css, /orientation:landscape/);

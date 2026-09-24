@@ -34,8 +34,10 @@ const cameras = (Array.isArray(window.NEO_VISION_CAMERAS) ? window.NEO_VISION_CA
 const drones = (Array.isArray(window.NEO_VISION_DRONES) ? window.NEO_VISION_DRONES : []).map((drone) => ({ ...drone, type: "drone" }));
 const streamSources = [...cameras, ...drones];
 const controls = [...document.querySelectorAll(".pad button")];
+const zoomControls = [...document.querySelectorAll(".zoom-control")];
 let selectedCameraId = streamSources[0]?.id || "CAM01";
 let cameraStatuses = {};
+let cameraCapabilities = {};
 let agentOnline = false;
 let socket = null;
 let authenticated = false;
@@ -67,7 +69,11 @@ function accessibleCameras() {
 function canAccessCamera(cameraId) { return accessibleCameras().some((camera) => camera.id === cameraId); }
 
 function selectedCamera() { return streamSources.find((camera) => camera.id === selectedCameraId); }
-function setControls(enabled) { controls.forEach((button) => { button.disabled = !enabled; }); }
+function setControls(enabled) {
+  controls.forEach((button) => { button.disabled = !enabled; });
+  const zoomEnabled = enabled && cameraCapabilities[selectedCameraId]?.supportsZoom === true;
+  zoomControls.forEach((button) => { button.disabled = !zoomEnabled; });
+}
 function setDot(dot, online) { dot.className = `dot ${online ? "online" : "offline"}`; }
 function message(text) { elements.message.textContent = text; }
 
@@ -88,7 +94,7 @@ function selectCamera(cameraId) {
   if (selectedCameraId !== cameraId) window.NeoVisionTalk.stop();
   if (activeDirection && selectedCameraId !== cameraId) {
     send({ type: "ptz", cameraId: selectedCameraId, command: "stop" });
-    document.querySelectorAll(".move.active").forEach((button) => button.classList.remove("active"));
+    document.querySelectorAll(".move.active, .zoom-control.active").forEach((button) => button.classList.remove("active"));
     activeDirection = null;
   }
   selectedCameraId = cameraId;
@@ -324,6 +330,7 @@ function showStatus(status = null) {
   if (status) {
     agentOnline = Boolean(status.agentOnline);
     cameraStatuses = Object.fromEntries((status.cameras || []).map((camera) => [camera.cameraId, Boolean(camera.cameraOnline)]));
+    cameraCapabilities = Object.fromEntries((status.cameras || []).map((camera) => [camera.cameraId, { supportsZoom: camera.supportsZoom === true }]));
     if (!status.cameras && status.cameraId) cameraStatuses[status.cameraId] = Boolean(status.cameraOnline);
   }
   const current = selectedCamera();
@@ -353,7 +360,7 @@ function send(payload) {
 }
 
 function stop() {
-  document.querySelectorAll(".move.active").forEach((button) => button.classList.remove("active"));
+  document.querySelectorAll(".move.active, .zoom-control.active").forEach((button) => button.classList.remove("active"));
   activeDirection = null;
   send({ type: "ptz", cameraId: selectedCameraId, command: "stop" });
 }
@@ -399,6 +406,7 @@ async function connect() {
     window.NeoVisionTalk.stop();
     agentOnline = false;
     cameraStatuses = {};
+    cameraCapabilities = {};
     showStatus();
     if (shouldReconnect) {
       message(t("connectionLost"));
@@ -533,6 +541,18 @@ document.querySelectorAll(".move").forEach((button) => {
     if (activeDirection === button.dataset.direction) stop();
   }));
 });
+zoomControls.forEach((button) => {
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    button.setPointerCapture(event.pointerId);
+    activeDirection = `zoom:${button.dataset.zoom}`;
+    button.classList.add("active");
+    send({ type: "ptz", cameraId: selectedCameraId, command: "zoom", direction: button.dataset.zoom, speed: 4 });
+  });
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => button.addEventListener(name, () => {
+    if (activeDirection === `zoom:${button.dataset.zoom}`) stop();
+  }));
+});
 document.querySelector("#stop").addEventListener("click", stop);
 window.addEventListener("blur", () => { if (activeDirection) stop(); });
 document.addEventListener("visibilitychange", () => {
@@ -557,6 +577,7 @@ function resetConnection() {
   authenticated = false;
   agentOnline = false;
   cameraStatuses = {};
+  cameraCapabilities = {};
   showStatus();
 }
 
