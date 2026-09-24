@@ -11,9 +11,13 @@ async def main():
     choices = {camera["id"]: camera for camera in camera_configs(config) if camera.get("ptzProtocol", "cgi").lower() == "onvif"}
     if not choices:
         raise SystemExit("Nenhuma câmera com ptzProtocol=onvif no config.json")
-    camera_id = input(f"ID da iM7+ ({', '.join(choices)}): ").strip().upper()
-    if camera_id not in choices:
-        raise SystemExit("ID ONVIF não encontrado")
+    if len(choices) == 1:
+        camera_id = next(iter(choices))
+        print(f"Câmera ONVIF selecionada automaticamente: {camera_id}")
+    else:
+        camera_id = input(f"ID da iM7+ ({', '.join(choices)}): ").strip().upper()
+        if camera_id not in choices:
+            raise SystemExit("ID ONVIF não encontrado")
     camera = OnvifCamera(choices[camera_id], .3)
     try:
         if not await camera.check_online():
