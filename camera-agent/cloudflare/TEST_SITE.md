@@ -19,6 +19,9 @@ O ambiente de teste usa o Worker `neo-vision-camera-test` e nunca substitui o Wo
 - compatibilidade móvel sem depender de `:has()`: a quantidade de colunas usa um atributo explícito, e a faixa de câmeras fica fixa abaixo dos vídeos com suporte à área segura do iOS;
 - tela cheia com API nativa quando disponível e modo adaptado quando o iOS/navegador não permite fullscreen do elemento;
 - permissões sensíveis negadas por padrão e preparadas para validação também no Worker.
+- permissão individual para visualizar o drone, junto às permissões de câmera;
+- nome global configurável para o drone;
+- botão Admin exibido assim que a sessão administrativa é restaurada;
 
 ## Segurança e isolamento
 
@@ -57,6 +60,8 @@ O painel Admin permite configurar:
 - alerta único para queda do Agent/internet;
 - histórico das 100 últimas ocorrências;
 - envio de alerta de teste.
+- filtro do histórico por dia e faixa de horário;
+- exclusão total do histórico mediante confirmação.
 
 As regras evitam repetição: uma câmera gera um aviso ao ultrapassar o prazo e outro somente quando recuperar. Quando o Agent para de comunicar, é emitido um único alerta geral em vez de um alerta para cada câmera.
 

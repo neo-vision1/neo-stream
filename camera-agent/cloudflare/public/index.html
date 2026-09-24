@@ -260,6 +260,13 @@
 </form>
 <div>
 <h4>Últimas ocorrências</h4>
+<div class="alert-history-tools">
+<label>Dia<input id="alertFilterDate" type="date"></label>
+<label>De<input id="alertFilterStart" type="time"></label>
+<label>Até<input id="alertFilterEnd" type="time"></label>
+<button id="clearAlertFilters" class="secondary-button" type="button">Limpar filtros</button>
+<button id="deleteAlertHistory" class="danger-button" type="button">Apagar histórico</button>
+</div>
 <div id="alertHistory" class="alert-history">
 <p class="muted">Nenhuma ocorrência registrada.</p>
 </div>

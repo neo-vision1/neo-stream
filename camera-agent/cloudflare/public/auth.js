@@ -78,7 +78,11 @@
 
   window.NeoVisionAuth = {
     ready: initialize(),
-    onChange(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    onChange(listener) {
+      listeners.add(listener);
+      if (currentSession) listener(currentSession);
+      return () => listeners.delete(listener);
+    },
     get session() { return currentSession; },
     get client() { return client; },
     async getUser() {

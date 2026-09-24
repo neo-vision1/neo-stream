@@ -50,7 +50,7 @@ export default {
       return json({ supabaseUrl: env.SUPABASE_URL, supabaseAnonKey: env.SUPABASE_ANON_KEY }, 200, { "cache-control": "no-store" });
     }
 
-    const alertMatch = url.pathname.match(/^\/api\/alerts\/([A-Za-z0-9_-]{1,64})(\/test)?$/);
+    const alertMatch = url.pathname.match(/^\/api\/alerts\/([A-Za-z0-9_-]{1,64})(\/(?:test|history))?$/);
     if (alertMatch) {
       const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "";
       const authEnv = await authEnvironment(env);
@@ -123,6 +123,10 @@ export class CameraSite extends DurableObject {
       const event = { kind: "test", occurredAt: Date.now() };
       const saved = await this.deliverAlert(event, siteId, config);
       return json({ ok: true, event: saved, emailConfigured: brevoConfigured(this.env) });
+    }
+    if (request.method === "DELETE" && action === "history") {
+      await this.ctx.storage.delete("alertHistory");
+      return json({ ok: true, history: [] });
     }
     return json({ error: "Method not allowed" }, 405);
   }

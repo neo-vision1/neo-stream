@@ -22,8 +22,14 @@ test("offers camera and drone source tabs", () => {
 
 test("allows the drone and cameras in the same persisted grid", () => {
   assert.match(app, /streamSources\.find\(\(item\) => item\.id === cameraId\)/);
-  assert.match(settings, /ALWAYS_AVAILABLE_STREAM_IDS = \["DRONE01"\]/);
-  assert.match(settings, /ALL_GRID_IDS\.includes\(id\)/);
+  assert.match(settings, /ALL_SOURCE_IDS = \[\.\.\.ALL_CAMERA_IDS, "DRONE01"\]/);
+  assert.match(settings, /ALL_SOURCE_IDS\.includes\(id\)/);
+});
+
+test("controls drone access and name with the same administration model", () => {
+  assert.match(app, /streamSources\.filter\(\(camera\) => allowed\.has\(camera\.id\)\)/);
+  assert.match(app, /streamSources\.map\(\(camera\) =>/);
+  assert.match(settings, /ALL_SOURCE_IDS\.filter\(\(cameraId\)/);
 });
 
 test("keeps the mobile source selector outside the video area", () => {

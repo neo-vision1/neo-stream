@@ -57,14 +57,13 @@ let sourceFilter = "camera";
 let muxPlaybackReady = false;
 
 function cameraLabel(camera) {
-  if (camera?.type === "drone") return camera.name || "Drone";
   return settings.cameraNames[camera.id] || camera.name || `${t("cameraName")} ${camera.id.replace("CAM", "")}`;
 }
 function gridLimit() { return settings.role === "admin" ? 11 : effectiveGridLimit(settings.profileGridLimit, settings.systemGridLimit); }
 function accessibleCameras() {
   if (settings.role === "admin") return streamSources;
   const allowed = new Set(settings.allowedCameraIds || []);
-  return streamSources.filter((camera) => camera.type === "drone" || allowed.has(camera.id));
+  return streamSources.filter((camera) => allowed.has(camera.id));
 }
 function canAccessCamera(cameraId) { return accessibleCameras().some((camera) => camera.id === cameraId); }
 
@@ -102,7 +101,7 @@ function selectCamera(cameraId) {
   muxPlaybackReady = false;
   elements.cameraName.textContent = camera ? cameraLabel(camera) : cameraId;
   elements.cameraIdBadge.textContent = cameraId;
-  elements.renameCamera.hidden = settings.role !== "admin" || camera?.type === "drone";
+  elements.renameCamera.hidden = settings.role !== "admin";
   document.querySelectorAll(".camera-item").forEach((button) => button.classList.toggle("selected", button.dataset.cameraId === cameraId));
 
   if (camera?.playbackId) {
@@ -201,7 +200,7 @@ function clearGrid() {
 }
 
 function renderAdminCameraNames() {
-  elements.adminCameraNames.replaceChildren(...cameras.map((camera) => {
+  elements.adminCameraNames.replaceChildren(...streamSources.map((camera) => {
     const label = document.createElement("label");
     const code = document.createElement("strong"); code.textContent = camera.id;
     const input = document.createElement("input"); input.type = "text"; input.maxLength = 60; input.dataset.cameraId = camera.id; input.value = cameraLabel(camera);
@@ -230,11 +229,11 @@ function profileRow(profile, currentUserId) {
   [1, 2, 4, 6, 9, 11].forEach((value) => { const option = document.createElement("option"); option.value = String(value); option.textContent = `${value} câmera${value > 1 ? "s" : ""}`; option.selected = Number(profile.multicamera_limit) === value; limit.append(option); });
   const save = document.createElement("button"); save.type = "submit"; save.textContent = "Salvar";
   const cameraAccess = document.createElement("fieldset"); cameraAccess.className = "profile-cameras";
-  const cameraLegend = document.createElement("legend"); cameraLegend.textContent = "Câmeras permitidas"; cameraAccess.append(cameraLegend);
-  const allowed = new Set(profile.role === "admin" ? cameras.map((camera) => camera.id) : (profile.allowed_camera_ids || []));
-  const cameraInputs = cameras.map((camera) => {
+  const cameraLegend = document.createElement("legend"); cameraLegend.textContent = "Fontes permitidas"; cameraAccess.append(cameraLegend);
+  const allowed = new Set(profile.role === "admin" ? streamSources.map((camera) => camera.id) : (profile.allowed_camera_ids || []));
+  const cameraInputs = streamSources.map((camera) => {
     const input = document.createElement("input"); input.type = "checkbox"; input.value = camera.id; input.checked = allowed.has(camera.id);
-    const label = document.createElement("label"); label.append(input, camera.id.replace("CAM", "")); cameraAccess.append(label);
+    const label = document.createElement("label"); label.append(input, camera.type === "drone" ? " Drone" : camera.id.replace("CAM", "")); cameraAccess.append(label);
     return input;
   });
   const syncAdminCameraAccess = () => {
@@ -485,8 +484,8 @@ elements.muxPlayer.addEventListener("waiting", () => { muxPlaybackReady = false;
 elements.muxPlayer.addEventListener("error", () => { muxPlaybackReady = false; showStatus(); });
 elements.renameCamera.addEventListener("click", async () => {
   const camera = selectedCamera();
-  if (!camera || camera.type === "drone") return;
-  const name = window.prompt("Nome personalizado desta câmera:", cameraLabel(camera));
+  if (!camera) return;
+  const name = window.prompt("Nome personalizado desta fonte:", cameraLabel(camera));
   if (name === null) return;
   try { await window.NeoVisionSettings.saveCameraName(camera.id, name); message("Nome atualizado para todos os usuários."); }
   catch { message("Não foi possível salvar o nome. O esquema de teste do Supabase precisa ser aplicado."); }
@@ -596,7 +595,7 @@ window.NeoVisionSettings.onChange((value) => {
   elements.adminGridLimit.value = String(normalizeGridLimit(settings.systemGridLimit));
   elements.adminAutoPause.checked = settings.autoPauseHidden;
   elements.adminIdleMinutes.value = String(settings.idleMinutes);
-  elements.renameCamera.hidden = settings.role !== "admin" || selectedCamera()?.type === "drone";
+  elements.renameCamera.hidden = settings.role !== "admin";
   if (!settings.multicameraEnabled && viewMode === "grid") setViewMode("single");
   gridCameraIds = gridCameraIds.filter(canAccessCamera).slice(0, gridLimit());
   if (!canAccessCamera(selectedCameraId)) selectedCameraId = accessibleCameras()[0]?.id || "";

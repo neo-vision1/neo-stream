@@ -1,7 +1,6 @@
 (() => {
   const ALL_CAMERA_IDS = Array.from({ length: 11 }, (_, index) => `CAM${String(index + 1).padStart(2, "0")}`);
-  const ALWAYS_AVAILABLE_STREAM_IDS = ["DRONE01"];
-  const ALL_GRID_IDS = [...ALL_CAMERA_IDS, ...ALWAYS_AVAILABLE_STREAM_IDS];
+  const ALL_SOURCE_IDS = [...ALL_CAMERA_IDS, "DRONE01"];
   const defaults = {
     role: "viewer",
     canPtz: false,
@@ -12,7 +11,7 @@
     autoPauseHidden: true,
     idleMinutes: 10,
     cameraNames: {},
-    allowedCameraIds: ALL_CAMERA_IDS,
+    allowedCameraIds: ALL_SOURCE_IDS,
     gridCameraIds: []
   };
   let state = { ...defaults };
@@ -23,7 +22,7 @@
 
   async function load(session) {
     const generation = ++loadGeneration;
-    let nextState = { ...defaults, cameraNames: {}, allowedCameraIds: [...ALL_CAMERA_IDS], gridCameraIds: [] };
+    let nextState = { ...defaults, cameraNames: {}, allowedCameraIds: [...ALL_SOURCE_IDS], gridCameraIds: [] };
     const client = window.NeoVisionAuth.client;
     const userId = session?.user?.id;
     if (!client || !userId) { state = nextState; notify(); return state; }
@@ -54,12 +53,12 @@
         nextState.cameraNames = Object.fromEntries(namesResult.data.map((row) => [row.camera_id, row.display_name]).filter(([, name]) => name));
       }
       if (nextState.role === "admin") {
-        nextState.allowedCameraIds = [...ALL_CAMERA_IDS];
+        nextState.allowedCameraIds = [...ALL_SOURCE_IDS];
       } else if (!accessResult.error && Array.isArray(accessResult.data)) {
-        nextState.allowedCameraIds = accessResult.data.map((row) => row.camera_id).filter((id) => ALL_CAMERA_IDS.includes(id));
+        nextState.allowedCameraIds = accessResult.data.map((row) => row.camera_id).filter((id) => ALL_SOURCE_IDS.includes(id));
       }
       if (Array.isArray(viewResult.data?.grid_camera_ids)) {
-        nextState.gridCameraIds = viewResult.data.grid_camera_ids.filter((id) => ALL_GRID_IDS.includes(id));
+        nextState.gridCameraIds = viewResult.data.grid_camera_ids.filter((id) => ALL_SOURCE_IDS.includes(id));
       }
     } catch (error) {
       console.warn("Preferências remotas indisponíveis; usando padrões seguros.", error);
@@ -90,8 +89,8 @@
       canPtz: admin || profile.can_ptz === true,
       canTalk: admin || profile.can_talk === true,
       profileGridLimit: admin ? 11 : (profile.multicamera_limit || 1),
-      allowedCameraIds: admin ? [...ALL_CAMERA_IDS] : (!accessResult.error && Array.isArray(accessResult.data)
-        ? accessResult.data.map((row) => row.camera_id).filter((id) => ALL_CAMERA_IDS.includes(id))
+      allowedCameraIds: admin ? [...ALL_SOURCE_IDS] : (!accessResult.error && Array.isArray(accessResult.data)
+        ? accessResult.data.map((row) => row.camera_id).filter((id) => ALL_SOURCE_IDS.includes(id))
         : state.allowedCameraIds)
     };
     if (!namesResult.error && Array.isArray(namesResult.data)) {
@@ -112,7 +111,7 @@
     if (state.role !== "admin") throw new Error("Acesso administrativo necessário.");
     const client = window.NeoVisionAuth.client;
     if (!client) return false;
-    const rows = ALL_CAMERA_IDS.filter((cameraId) => Object.hasOwn(cameraNames || {}, cameraId)).map((cameraId) => ({
+    const rows = ALL_SOURCE_IDS.filter((cameraId) => Object.hasOwn(cameraNames || {}, cameraId)).map((cameraId) => ({
       site_id: "OBRA_001",
       camera_id: cameraId,
       display_name: String(cameraNames[cameraId] || "").trim().slice(0, 60),
@@ -127,7 +126,7 @@
   }
 
   async function saveCameraName(cameraId, customName) {
-    if (!ALL_CAMERA_IDS.includes(cameraId)) return false;
+    if (!ALL_SOURCE_IDS.includes(cameraId)) return false;
     return saveCameraNames({ [cameraId]: customName });
   }
 
@@ -135,7 +134,7 @@
     const client = window.NeoVisionAuth.client;
     const userId = window.NeoVisionAuth.session?.user?.id;
     if (!client || !userId) return false;
-    const allowed = new Set([...(state.role === "admin" ? ALL_CAMERA_IDS : state.allowedCameraIds), ...ALWAYS_AVAILABLE_STREAM_IDS]);
+    const allowed = new Set(state.role === "admin" ? ALL_SOURCE_IDS : state.allowedCameraIds);
     const gridCameraIds = [...new Set(cameraIds)].filter((id) => allowed.has(id)).slice(0, 11);
     const { error } = await client.from("viewer_preferences").upsert({
       user_id: userId,
@@ -158,11 +157,11 @@
     const accessByUser = new Map();
     if (!accessResult.error) for (const row of accessResult.data || []) {
       if (!accessByUser.has(row.user_id)) accessByUser.set(row.user_id, []);
-      if (ALL_CAMERA_IDS.includes(row.camera_id)) accessByUser.get(row.user_id).push(row.camera_id);
+      if (ALL_SOURCE_IDS.includes(row.camera_id)) accessByUser.get(row.user_id).push(row.camera_id);
     }
     return (data || []).map((profile) => ({
       ...profile,
-      allowed_camera_ids: profile.role === "admin" || accessResult.error ? [...ALL_CAMERA_IDS] : (accessByUser.get(profile.id) || [])
+      allowed_camera_ids: profile.role === "admin" || accessResult.error ? [...ALL_SOURCE_IDS] : (accessByUser.get(profile.id) || [])
     }));
   }
 
@@ -176,7 +175,7 @@
       can_talk: Boolean(values.canTalk),
       multicamera_limit: [1, 2, 4, 6, 9, 11].includes(Number(values.multicameraLimit)) ? Number(values.multicameraLimit) : 1
     };
-    const allowedCameraIds = payload.role === "admin" ? [...ALL_CAMERA_IDS] : [...new Set(values.allowedCameraIds || [])].filter((cameraId) => ALL_CAMERA_IDS.includes(cameraId));
+    const allowedCameraIds = payload.role === "admin" ? [...ALL_SOURCE_IDS] : [...new Set(values.allowedCameraIds || [])].filter((cameraId) => ALL_SOURCE_IDS.includes(cameraId));
     if (!allowedCameraIds.length) throw new Error("Selecione pelo menos uma câmera.");
     const { data, error } = await client.from("profiles").update(payload).eq("id", id).select("id,role,can_ptz,can_talk,multicamera_limit").single();
     if (error) throw error;

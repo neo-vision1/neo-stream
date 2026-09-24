@@ -46,6 +46,14 @@ create table if not exists public.app_settings (
   updated_at timestamptz not null default now()
 );
 
+-- Trata o drone como uma fonte com nome e acesso próprios.
+alter table public.camera_settings drop constraint if exists camera_settings_camera_id_check;
+alter table public.camera_settings add constraint camera_settings_camera_id_check
+  check (camera_id ~ '^CAM[0-9]{2}$' or camera_id = 'DRONE01');
+alter table public.profile_camera_access drop constraint if exists profile_camera_access_camera_id_check;
+alter table public.profile_camera_access add constraint profile_camera_access_camera_id_check
+  check (camera_id ~ '^CAM(0[1-9]|1[01])$' or camera_id = 'DRONE01');
+
 create or replace function public.is_admin() returns boolean language sql stable security definer set search_path = public as $$
   select exists(select 1 from public.profiles where id = auth.uid() and role = 'admin');
 $$;
@@ -91,6 +99,8 @@ begin
   insert into public.profile_camera_access(user_id, camera_id)
     select new.id, 'CAM' || lpad(number::text, 2, '0') from generate_series(1, 11) as number
     on conflict (user_id, camera_id) do nothing;
+  insert into public.profile_camera_access(user_id, camera_id) values(new.id, 'DRONE01')
+    on conflict (user_id, camera_id) do nothing;
   return new;
 end;
 $$;
@@ -102,9 +112,15 @@ insert into public.profile_camera_access(user_id, camera_id)
   select users.id, 'CAM' || lpad(number::text, 2, '0')
   from auth.users as users cross join generate_series(1, 11) as number
   on conflict (user_id, camera_id) do nothing;
+insert into public.profile_camera_access(user_id, camera_id)
+  select id, 'DRONE01' from auth.users
+  on conflict (user_id, camera_id) do nothing;
 insert into public.camera_settings(site_id, camera_id, display_name)
   select 'OBRA_001', 'CAM' || lpad(number::text, 2, '0'), 'Câmera ' || lpad(number::text, 2, '0')
   from generate_series(1, 11) as number
+  on conflict (site_id, camera_id) do nothing;
+insert into public.camera_settings(site_id, camera_id, display_name)
+  values('OBRA_001', 'DRONE01', 'Drone')
   on conflict (site_id, camera_id) do nothing;
 insert into public.camera_settings(site_id, camera_id, display_name, updated_at)
   select distinct on (preferences.camera_id) 'OBRA_001', preferences.camera_id, preferences.custom_name, now()
