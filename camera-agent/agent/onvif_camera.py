@@ -32,6 +32,7 @@ class OnvifCamera:
         camera = ONVIFCamera(
             self.config["ip"], int(self.config.get("onvifPort", 80)),
             self.config.get("username", "admin"), self.config["password"],
+            encrypt=bool(self.config.get("onvifPasswordDigest", True)),
             adjust_time=bool(self.config.get("onvifAdjustTime", False)), no_cache=True,
         )
         try:

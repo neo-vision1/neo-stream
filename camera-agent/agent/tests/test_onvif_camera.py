@@ -24,7 +24,7 @@ class OnvifCameraTests(unittest.IsolatedAsyncioTestCase):
         self.instance = instance
         self.factory = patch("onvif_camera.ONVIFCamera", return_value=instance)
         self.factory.start()
-        self.camera = OnvifCamera({"id": "CAM11", "ip": "192.168.1.20", "username": "admin", "password": "secret"}, 10)
+        self.camera = OnvifCamera({"id": "CAM11", "ip": "192.168.1.20", "username": "admin", "password": "secret", "onvifPasswordDigest": False}, 10)
 
     async def asyncTearDown(self):
         if self.camera._stop_task:
@@ -38,6 +38,9 @@ class OnvifCameraTests(unittest.IsolatedAsyncioTestCase):
         self.instance.create_media_service.assert_awaited_once()
         self.instance.create_ptz_service.assert_awaited_once()
         self.instance.create_devicemgmt_service.assert_awaited_once()
+        from onvif_camera import ONVIFCamera
+        ONVIFCamera.assert_called_once()
+        self.assertFalse(ONVIFCamera.call_args.kwargs["encrypt"])
         await self.camera.zoom("in", 4)
         request = self.ptz.ContinuousMove.await_args.args[0]
         self.assertEqual(request["ProfileToken"], "profile-1")

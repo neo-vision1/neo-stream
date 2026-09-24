@@ -36,6 +36,7 @@
       "ptzProtocol": "onvif",
       "onvifPort": 80,
       "onvifAdjustTime": true,
+      "onvifPasswordDigest": false,
       "username": "admin",
       "password": "CHAVE_DE_ACESSO_DA_ETIQUETA",
       "supportsZoom": true

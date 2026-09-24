@@ -34,6 +34,7 @@ $values = [ordered]@{
     ptzProtocol = "onvif"
     onvifPort = 80
     onvifAdjustTime = $true
+    onvifPasswordDigest = $false
     username = "admin"
     password = $cameraPassword
     supportsZoom = $true
