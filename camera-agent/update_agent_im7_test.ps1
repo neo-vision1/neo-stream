@@ -33,6 +33,7 @@ $values = [ordered]@{
     ip = "192.168.1.108"
     ptzProtocol = "onvif"
     onvifPort = 80
+    onvifAdjustTime = $true
     username = "admin"
     password = $cameraPassword
     supportsZoom = $true

@@ -63,7 +63,7 @@ $newConfig = [ordered]@{
         [ordered]@{ id = "CAM08"; name = "Câmera 08"; ip = "192.168.1.12" }
         [ordered]@{ id = "CAM09"; name = "Câmera 09"; ip = "192.168.1.22" }
         [ordered]@{ id = "CAM10"; name = "Câmera 10"; ip = "192.168.1.14" }
-        [ordered]@{ id = "CAM11"; name = "iM7+ Zoom Full Color"; ip = "192.168.1.108"; ptzProtocol = "onvif"; onvifPort = 80; username = "admin"; password = $im7Password; supportsZoom = $true }
+        [ordered]@{ id = "CAM11"; name = "iM7+ Zoom Full Color"; ip = "192.168.1.108"; ptzProtocol = "onvif"; onvifPort = 80; onvifAdjustTime = $true; username = "admin"; password = $im7Password; supportsZoom = $true }
     )
 }
 
