@@ -18,7 +18,8 @@ const elements = {
   goLive: document.querySelector("#goLive"), fullscreen: document.querySelector("#fullscreen"),
   singleView: document.querySelector("#singleView"), gridView: document.querySelector("#gridView"),
   viewerCard: document.querySelector(".viewer-card"), singleViewer: document.querySelector("#singleViewer"), gridViewer: document.querySelector("#gridViewer"),
-  gridCount: document.querySelector("#gridCount"), clearGrid: document.querySelector("#clearGrid"), renameCamera: document.querySelector("#renameCamera"),
+  gridCount: document.querySelector("#gridCount"), selectAllGrid: document.querySelector("#selectAllGrid"),
+  clearGrid: document.querySelector("#clearGrid"), renameCamera: document.querySelector("#renameCamera"),
   adminToggle: document.querySelector("#adminToggle"), adminPanel: document.querySelector("#adminPanel"),
   closeAdmin: document.querySelector("#closeAdmin"), adminSettings: document.querySelector("#adminSettings"),
   adminMulticamera: document.querySelector("#adminMulticamera"), adminGridLimit: document.querySelector("#adminGridLimit"),
@@ -165,6 +166,7 @@ function setViewMode(mode) {
   elements.gridViewer.hidden = mode !== "grid";
   elements.singleView.classList.toggle("active", mode === "single");
   elements.gridView.classList.toggle("active", mode === "grid");
+  elements.selectAllGrid.hidden = mode !== "grid";
   elements.clearGrid.hidden = mode !== "grid";
   if (mode === "grid") {
     elements.muxPlayer.pause();
@@ -197,6 +199,18 @@ function clearGrid() {
   renderCameraList();
   renderGrid();
   window.NeoVisionSettings.saveGridSelection([]).catch(() => message("Não foi possível salvar a seleção da grade."));
+}
+
+function selectAllGrid() {
+  const availableIds = accessibleCameras().map((camera) => camera.id);
+  const limit = gridLimit();
+  gridCameraIds = availableIds.slice(0, limit);
+  renderCameraList();
+  renderGrid();
+  if (availableIds.length > limit) {
+    message(`Foram marcadas ${limit} fontes, o limite simultâneo definido pelo administrador.`);
+  }
+  window.NeoVisionSettings.saveGridSelection(gridCameraIds).catch(() => message("Não foi possível salvar a seleção da grade."));
 }
 
 function renderAdminCameraNames() {
@@ -443,6 +457,7 @@ elements.connect.addEventListener("click", connect);
 elements.sourceTabs.forEach((tab) => tab.addEventListener("click", () => setSourceFilter(tab.dataset.sourceFilter)));
 elements.singleView.addEventListener("click", () => setViewMode("single"));
 elements.gridView.addEventListener("click", () => setViewMode("grid"));
+elements.selectAllGrid.addEventListener("click", selectAllGrid);
 elements.clearGrid.addEventListener("click", clearGrid);
 function updateFullscreenButton() {
   const active = Boolean(document.fullscreenElement || document.webkitFullscreenElement || pseudoFullscreen);
