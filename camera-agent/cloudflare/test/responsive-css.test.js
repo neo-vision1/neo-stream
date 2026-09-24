@@ -25,6 +25,7 @@ test("mobile landscape columns do not depend on the CSS has selector", () => {
   assert.match(app, /gridViewer\.dataset\.count = String\(gridCameraIds\.length\)/);
   assert.match(css, /grid-viewer\[data-count="5"\].*repeat\(3/);
   assert.match(css, /grid-viewer\[data-count="10"\].*repeat\(4/);
+  assert.match(css, /grid-viewer\[data-count="12"\].*repeat\(4/);
   assert.match(css, /touch-action:pan-x/);
 });
 

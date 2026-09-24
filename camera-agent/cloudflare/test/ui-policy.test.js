@@ -10,6 +10,7 @@ test("normalizes only supported camera limits", () => {
 test("uses the strictest system and profile limit", () => {
   assert.equal(effectiveGridLimit(9, 4), 4);
   assert.equal(effectiveGridLimit(2, 11), 2);
+  assert.equal(effectiveGridLimit(12, 12), 12);
 });
 
 test("does not select cameras beyond the administrative limit", () => {

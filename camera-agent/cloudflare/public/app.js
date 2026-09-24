@@ -60,7 +60,7 @@ let muxPlaybackReady = false;
 function cameraLabel(camera) {
   return settings.cameraNames[camera.id] || camera.name || `${t("cameraName")} ${camera.id.replace("CAM", "")}`;
 }
-function gridLimit() { return settings.role === "admin" ? 11 : effectiveGridLimit(settings.profileGridLimit, settings.systemGridLimit); }
+function gridLimit() { return settings.role === "admin" ? 12 : effectiveGridLimit(settings.profileGridLimit, settings.systemGridLimit); }
 function accessibleCameras() {
   if (settings.role === "admin") return streamSources;
   const allowed = new Set(settings.allowedCameraIds || []);
@@ -240,7 +240,7 @@ function profileRow(profile, currentUserId) {
   const talkInput = document.createElement("input"); talkInput.type = "checkbox"; talkInput.checked = Boolean(profile.can_talk);
   const talk = document.createElement("label"); talk.className = "profile-check"; talk.append(talkInput, " Áudio");
   const limit = document.createElement("select"); limit.ariaLabel = "Limite multicâmera";
-  [1, 2, 4, 6, 9, 11].forEach((value) => { const option = document.createElement("option"); option.value = String(value); option.textContent = `${value} câmera${value > 1 ? "s" : ""}`; option.selected = Number(profile.multicamera_limit) === value; limit.append(option); });
+  [1, 2, 4, 6, 9, 11, 12].forEach((value) => { const option = document.createElement("option"); option.value = String(value); option.textContent = `${value} câmera${value > 1 ? "s" : ""}`; option.selected = Number(profile.multicamera_limit) === value; limit.append(option); });
   const save = document.createElement("button"); save.type = "submit"; save.textContent = "Salvar";
   const cameraAccess = document.createElement("fieldset"); cameraAccess.className = "profile-cameras";
   const cameraLegend = document.createElement("legend"); cameraLegend.textContent = "Fontes permitidas"; cameraAccess.append(cameraLegend);

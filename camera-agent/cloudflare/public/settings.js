@@ -41,7 +41,7 @@
         canTalk: profileResult.data.can_talk !== false,
         profileGridLimit: profileResult.data.multicamera_limit || 4
       };
-      if (nextState.role === "admin") nextState = { ...nextState, canPtz: true, canTalk: true, profileGridLimit: 11 };
+      if (nextState.role === "admin") nextState = { ...nextState, canPtz: true, canTalk: true, profileGridLimit: 12 };
       if (settingsResult.data) nextState = {
         ...nextState,
         multicameraEnabled: settingsResult.data.multicamera_enabled !== false,
@@ -88,7 +88,7 @@
       role: profile.role || "viewer",
       canPtz: admin || profile.can_ptz === true,
       canTalk: admin || profile.can_talk === true,
-      profileGridLimit: admin ? 11 : (profile.multicamera_limit || 1),
+      profileGridLimit: admin ? 12 : (profile.multicamera_limit || 1),
       allowedCameraIds: admin ? [...ALL_SOURCE_IDS] : (!accessResult.error && Array.isArray(accessResult.data)
         ? accessResult.data.map((row) => row.camera_id).filter((id) => ALL_SOURCE_IDS.includes(id))
         : state.allowedCameraIds)
@@ -135,7 +135,7 @@
     const userId = window.NeoVisionAuth.session?.user?.id;
     if (!client || !userId) return false;
     const allowed = new Set(state.role === "admin" ? ALL_SOURCE_IDS : state.allowedCameraIds);
-    const gridCameraIds = [...new Set(cameraIds)].filter((id) => allowed.has(id)).slice(0, 11);
+    const gridCameraIds = [...new Set(cameraIds)].filter((id) => allowed.has(id)).slice(0, 12);
     const { error } = await client.from("viewer_preferences").upsert({
       user_id: userId,
       grid_camera_ids: gridCameraIds,
@@ -173,7 +173,7 @@
       role: ["admin", "operator", "viewer"].includes(values.role) ? values.role : "viewer",
       can_ptz: Boolean(values.canPtz),
       can_talk: Boolean(values.canTalk),
-      multicamera_limit: [1, 2, 4, 6, 9, 11].includes(Number(values.multicameraLimit)) ? Number(values.multicameraLimit) : 1
+      multicamera_limit: [1, 2, 4, 6, 9, 11, 12].includes(Number(values.multicameraLimit)) ? Number(values.multicameraLimit) : 1
     };
     const allowedCameraIds = payload.role === "admin" ? [...ALL_SOURCE_IDS] : [...new Set(values.allowedCameraIds || [])].filter((cameraId) => ALL_SOURCE_IDS.includes(cameraId));
     if (!allowedCameraIds.length) throw new Error("Selecione pelo menos uma câmera.");

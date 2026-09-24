@@ -17,3 +17,8 @@ test("shows bulk controls only while building a grid", () => {
   assert.match(app, /elements\.selectAllGrid\.hidden = mode !== "grid"/);
   assert.match(app, /elements\.clearGrid\.hidden = mode !== "grid"/);
 });
+
+test("supports all 11 cameras plus the drone in one grid", () => {
+  assert.match(app, /settings\.role === "admin" \? 12/);
+  assert.match(app, /\[1, 2, 4, 6, 9, 11, 12\]/);
+});

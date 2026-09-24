@@ -5,7 +5,7 @@ create table if not exists public.profiles (
   role text not null default 'viewer' check (role in ('admin', 'operator', 'viewer')),
   can_ptz boolean not null default false,
   can_talk boolean not null default false,
-  multicamera_limit smallint not null default 4 check (multicamera_limit in (1,2,4,6,9,11)),
+  multicamera_limit smallint not null default 4 check (multicamera_limit in (1,2,4,6,9,11,12)),
   created_at timestamptz not null default now()
 );
 
@@ -34,13 +34,13 @@ create table if not exists public.viewer_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
   grid_camera_ids text[] not null default '{}',
   updated_at timestamptz not null default now(),
-  check (cardinality(grid_camera_ids) <= 11)
+  check (cardinality(grid_camera_ids) <= 12)
 );
 
 create table if not exists public.app_settings (
   site_id text primary key,
   multicamera_enabled boolean not null default true,
-  max_multicamera smallint not null default 4 check (max_multicamera in (1,2,4,6,9,11)),
+  max_multicamera smallint not null default 4 check (max_multicamera in (1,2,4,6,9,11,12)),
   auto_pause_hidden boolean not null default true,
   idle_minutes smallint not null default 10 check (idle_minutes between 1 and 120),
   updated_at timestamptz not null default now()

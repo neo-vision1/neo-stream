@@ -1,4 +1,4 @@
-export const GRID_LIMITS = [1, 2, 4, 6, 9, 11];
+export const GRID_LIMITS = [1, 2, 4, 6, 9, 11, 12];
 
 export function normalizeGridLimit(value, fallback = 4) {
   const number = Number(value);
@@ -6,7 +6,7 @@ export function normalizeGridLimit(value, fallback = 4) {
 }
 
 export function effectiveGridLimit(profileLimit, systemLimit) {
-  return Math.min(normalizeGridLimit(profileLimit), normalizeGridLimit(systemLimit, 11));
+  return Math.min(normalizeGridLimit(profileLimit), normalizeGridLimit(systemLimit, 12));
 }
 
 export function liveDelay(player) {

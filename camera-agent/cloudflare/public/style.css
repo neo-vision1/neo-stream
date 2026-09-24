@@ -23,3 +23,4 @@ html[data-pseudo-fullscreen]{overflow:hidden}html[data-pseudo-fullscreen] body{o
 .zoom-control { min-height: 44px; }
 .zoom-control.active { background: var(--accent); color: #07111f; }
 .zoom-control:disabled { opacity: .4; cursor: not-allowed; }
+@media (orientation:landscape) and (hover:none) and (pointer:coarse){html[data-view-mode=grid] .grid-viewer[data-count="12"]{grid-template-columns:repeat(4,minmax(0,1fr))}}
