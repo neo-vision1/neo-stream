@@ -10,14 +10,13 @@ export const DEFAULT_ALERT_CONFIG = Object.freeze({
 export function normalizeAlertConfig(value = {}) {
   const minutes = [1, 2, 5, 10, 15].includes(Number(value.offlineMinutes)) ? Number(value.offlineMinutes) : 5;
   const email = typeof value.recipient === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.recipient.trim()) ? value.recipient.trim().slice(0, 254) : "";
-  const sender = typeof value.sender === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.sender.trim()) ? value.sender.trim().slice(0, 254) : DEFAULT_ALERT_CONFIG.sender;
   return {
     enabled: value.enabled === true,
     offlineMinutes: minutes,
     recoveryEnabled: value.recoveryEnabled !== false,
     agentAlertsEnabled: value.agentAlertsEnabled !== false,
     recipient: email,
-    sender
+    sender: DEFAULT_ALERT_CONFIG.sender
   };
 }
 

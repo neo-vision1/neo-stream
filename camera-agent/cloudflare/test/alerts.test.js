@@ -9,6 +9,13 @@ test("normalizes alert configuration safely", () => {
   });
 });
 
+test("replaces a legacy sender with the verified Brevo sender", () => {
+  assert.equal(
+    normalizeAlertConfig({ sender: "alerts@neovision-es.com.br" }).sender,
+    "neovisiondrone@gmail.com"
+  );
+});
+
 test("sends one camera alert after the configured delay and then recovery", () => {
   const config = { enabled: true, offlineMinutes: 1 };
   const first = evaluateAlerts({ now: 1_000, status: { lastHeartbeat: 1_000, cameras: { CAM01: false } }, config });
