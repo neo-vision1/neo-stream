@@ -12,7 +12,7 @@ Oracle e Vercel não são necessários. Cada câmera envia o vídeo por RTMP ao 
 
 - Cloudflare Worker com painel e endpoint WSS.
 - Durable Object por local, com hibernação WebSocket.
-- Um único painel responsivo com lista de câmeras, vídeo Mux e UP, DOWN, LEFT, RIGHT e STOP.
+- Um único painel responsivo com opções Câmeras e Drone, vídeo Mux, grade mista e controles PTZ para as câmeras.
 - Login por e-mail e senha com Supabase Auth; o Worker valida a sessão antes de aceitar comandos PTZ.
 - Agent Python com HTTP Digest para a câmera.
 - Heartbeat individual das câmeras, reconexão automática e estado online/offline.
@@ -67,6 +67,11 @@ Edite `cloudflare/public/cameras.js` e informe somente o **Playback ID público*
 ```
 
 Não coloque a Stream Key RTMP nesse arquivo. A câmera usa RTMP URL + Stream Key para enviar; o navegador usa apenas o Playback ID para assistir. O painel incorpora o player web oficial do Mux e associa o vídeo ao mesmo ID lógico usado pelo PTZ.
+
+O mesmo arquivo também aceita transmissões de drone em `NEO_VISION_DRONES`.
+O drone aparece em uma opção separada no painel, não recebe comandos PTZ do
+Agent e pode ser reproduzido sozinho ou junto com câmeras no modo grade. A
+grade mantém o limite simultâneo configurado pelo administrador.
 
 Depois, publique novamente:
 

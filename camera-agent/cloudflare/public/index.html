@@ -62,8 +62,12 @@
   <section class="workspace">
     <aside class="camera-panel">
 <div class="panel-title">
-<span data-i18n="cameras">Câmeras</span>
-<small data-i18n="devices11">11 equipamentos</small>
+<span id="sourcePanelTitle" data-i18n="cameras">Câmeras</span>
+<small id="sourcePanelCount" data-i18n="devices11">11 equipamentos</small>
+</div>
+<div class="source-tabs" role="tablist" aria-label="Tipo de transmissão">
+<button class="source-tab active" type="button" role="tab" aria-selected="true" data-source-filter="camera">Câmeras</button>
+<button class="source-tab" type="button" role="tab" aria-selected="false" data-source-filter="drone">Drone</button>
 </div>
 <div id="cameraList" class="camera-list">
 </div>
@@ -134,7 +138,7 @@
 <div>
 <span id="cameraDot" class="dot">
 </span>
-<small data-i18n="camera">CÂMERA</small>
+<small id="selectedSourceType" data-i18n="camera">CÂMERA</small>
 <strong id="cameraStatus">OFFLINE</strong>
 </div>
 </div>

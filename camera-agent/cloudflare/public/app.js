@@ -3,10 +3,13 @@ import { effectiveGridLimit, isAtLiveEdge, liveDelay, normalizeGridLimit, select
 const elements = {
   site: document.querySelector("#site"), connect: document.querySelector("#connect"),
   message: document.querySelector("#message"), cameraList: document.querySelector("#cameraList"),
+  sourceTabs: [...document.querySelectorAll("[data-source-filter]")],
+  sourcePanelTitle: document.querySelector("#sourcePanelTitle"), sourcePanelCount: document.querySelector("#sourcePanelCount"),
   cameraName: document.querySelector("#cameraName"), cameraIdBadge: document.querySelector("#cameraIdBadge"),
   muxPlayer: document.querySelector("#muxPlayer"), videoEmpty: document.querySelector("#videoEmpty"),
   agentDot: document.querySelector("#agentDot"), cameraDot: document.querySelector("#cameraDot"),
   agentStatus: document.querySelector("#agentStatus"), cameraStatus: document.querySelector("#cameraStatus"),
+  selectedSourceType: document.querySelector("#selectedSourceType"),
   listenToggle: document.querySelector("#listenToggle"),
   volumeControl: document.querySelector("#volumeControl"),
   volumeValue: document.querySelector("#volumeValue"), talkButton: document.querySelector("#talkButton"),
@@ -27,9 +30,11 @@ const elements = {
   adminCameraNames: document.querySelector("#adminCameraNames"), cameraNamesMessage: document.querySelector("#cameraNamesMessage")
 };
 const t = (key) => window.NeoVisionUI.t(key);
-const cameras = Array.isArray(window.NEO_VISION_CAMERAS) ? window.NEO_VISION_CAMERAS : [];
+const cameras = (Array.isArray(window.NEO_VISION_CAMERAS) ? window.NEO_VISION_CAMERAS : []).map((camera) => ({ ...camera, type: "camera" }));
+const drones = (Array.isArray(window.NEO_VISION_DRONES) ? window.NEO_VISION_DRONES : []).map((drone) => ({ ...drone, type: "drone" }));
+const streamSources = [...cameras, ...drones];
 const controls = [...document.querySelectorAll(".pad button")];
-let selectedCameraId = cameras[0]?.id || "CAM01";
+let selectedCameraId = streamSources[0]?.id || "CAM01";
 let cameraStatuses = {};
 let agentOnline = false;
 let socket = null;
@@ -46,17 +51,22 @@ let sessionDeliveredSeconds = 0;
 let lastUsageTick = performance.now();
 let lastInteraction = Date.now();
 let pseudoFullscreen = false;
+let sourceFilter = "camera";
+let muxPlaybackReady = false;
 
-function cameraLabel(camera) { return settings.cameraNames[camera.id] || camera.name || `${t("cameraName")} ${camera.id.replace("CAM", "")}`; }
+function cameraLabel(camera) {
+  if (camera?.type === "drone") return camera.name || "Drone";
+  return settings.cameraNames[camera.id] || camera.name || `${t("cameraName")} ${camera.id.replace("CAM", "")}`;
+}
 function gridLimit() { return settings.role === "admin" ? 11 : effectiveGridLimit(settings.profileGridLimit, settings.systemGridLimit); }
 function accessibleCameras() {
-  if (settings.role === "admin") return cameras;
+  if (settings.role === "admin") return streamSources;
   const allowed = new Set(settings.allowedCameraIds || []);
-  return cameras.filter((camera) => allowed.has(camera.id));
+  return streamSources.filter((camera) => camera.type === "drone" || allowed.has(camera.id));
 }
 function canAccessCamera(cameraId) { return accessibleCameras().some((camera) => camera.id === cameraId); }
 
-function selectedCamera() { return cameras.find((camera) => camera.id === selectedCameraId); }
+function selectedCamera() { return streamSources.find((camera) => camera.id === selectedCameraId); }
 function setControls(enabled) { controls.forEach((button) => { button.disabled = !enabled; }); }
 function setDot(dot, online) { dot.className = `dot ${online ? "online" : "offline"}`; }
 function message(text) { elements.message.textContent = text; }
@@ -83,8 +93,10 @@ function selectCamera(cameraId) {
   }
   selectedCameraId = cameraId;
   const camera = selectedCamera();
+  muxPlaybackReady = false;
   elements.cameraName.textContent = camera ? cameraLabel(camera) : cameraId;
   elements.cameraIdBadge.textContent = cameraId;
+  elements.renameCamera.hidden = settings.role !== "admin" || camera?.type === "drone";
   document.querySelectorAll(".camera-item").forEach((button) => button.classList.toggle("selected", button.dataset.cameraId === cameraId));
 
   if (camera?.playbackId) {
@@ -101,15 +113,23 @@ function selectCamera(cameraId) {
 }
 
 function renderCameraList() {
-  elements.cameraList.replaceChildren(...accessibleCameras().map((camera) => {
+  const visibleSources = accessibleCameras().filter((camera) => camera.type === sourceFilter);
+  elements.sourcePanelTitle.textContent = sourceFilter === "drone" ? "Drone" : "Câmeras";
+  elements.sourcePanelCount.textContent = sourceFilter === "drone" ? `${visibleSources.length} transmissão` : `${visibleSources.length} equipamentos`;
+  elements.sourceTabs.forEach((tab) => {
+    const active = tab.dataset.sourceFilter === sourceFilter;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", String(active));
+  });
+  elements.cameraList.replaceChildren(...visibleSources.map((camera) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "camera-item";
     button.dataset.cameraId = camera.id;
-    const number = document.createElement("span"); number.className = "camera-number"; number.textContent = camera.id.replace("CAM", "");
+    const number = document.createElement("span"); number.className = "camera-number"; number.textContent = camera.type === "drone" ? "DR" : camera.id.replace("CAM", "");
     const text = document.createElement("span"); const strong = document.createElement("strong"); const small = document.createElement("small");
-    strong.textContent = cameraLabel(camera); small.textContent = camera.id; text.append(strong, small);
-    const dot = document.createElement("i"); dot.className = "mini-dot";
+    strong.textContent = cameraLabel(camera); small.textContent = camera.type === "drone" ? "MUX · AO VIVO" : camera.id; text.append(strong, small);
+    const dot = document.createElement("i"); dot.className = `mini-dot${camera.type === "drone" ? " stream" : ""}`;
     const check = document.createElement("span"); check.className = `grid-check ${gridCameraIds.includes(camera.id) ? "checked" : ""}`; check.textContent = gridCameraIds.includes(camera.id) ? "✓" : "+";
     button.append(number, text, dot, check);
     button.addEventListener("click", () => {
@@ -118,6 +138,15 @@ function renderCameraList() {
     });
     return button;
   }));
+}
+
+function setSourceFilter(filter) {
+  sourceFilter = filter === "drone" ? "drone" : "camera";
+  renderCameraList();
+  if (viewMode === "single") {
+    const first = accessibleCameras().find((source) => source.type === sourceFilter);
+    if (first) selectCamera(first.id);
+  }
 }
 
 function setViewMode(mode) {
@@ -241,17 +270,17 @@ function renderGrid() {
   elements.gridViewer.replaceChildren();
   if (!gridCameraIds.length) {
     const empty = document.createElement("div"); empty.className = "grid-empty";
-    const strong = document.createElement("strong"); strong.textContent = "Selecione as câmeras na lista";
-    const span = document.createElement("span"); span.textContent = "Somente as câmeras marcadas serão reproduzidas.";
+    const strong = document.createElement("strong"); strong.textContent = "Selecione câmeras ou o drone na lista";
+    const span = document.createElement("span"); span.textContent = "Use as opções Câmeras e Drone para montar a grade.";
     empty.append(strong, span); elements.gridViewer.append(empty); return;
   }
   for (const cameraId of gridCameraIds) {
     if (!canAccessCamera(cameraId)) continue;
-    const camera = cameras.find((item) => item.id === cameraId);
+    const camera = streamSources.find((item) => item.id === cameraId);
     if (!camera?.playbackId) continue;
     const card = document.createElement("article"); card.className = "grid-camera";
     const header = document.createElement("button"); header.type = "button"; header.textContent = `${cameraLabel(camera)} · ${camera.id}`;
-    header.addEventListener("click", () => { selectCamera(camera.id); setViewMode("single"); });
+    header.addEventListener("click", () => { setSourceFilter(camera.type); selectCamera(camera.id); setViewMode("single"); });
     const player = document.createElement("mux-player");
     player.setAttribute("playback-id", camera.playbackId); player.setAttribute("stream-type", "live");
     player.setAttribute("autoplay", ""); player.setAttribute("muted", ""); player.setAttribute("title", cameraLabel(camera));
@@ -297,16 +326,21 @@ function showStatus(status = null) {
     cameraStatuses = Object.fromEntries((status.cameras || []).map((camera) => [camera.cameraId, Boolean(camera.cameraOnline)]));
     if (!status.cameras && status.cameraId) cameraStatuses[status.cameraId] = Boolean(status.cameraOnline);
   }
-  const cameraOnline = Boolean(cameraStatuses[selectedCameraId]);
+  const current = selectedCamera();
+  const isDrone = current?.type === "drone";
+  const cameraOnline = isDrone ? muxPlaybackReady : Boolean(cameraStatuses[selectedCameraId]);
   setDot(elements.agentDot, agentOnline);
   setDot(elements.cameraDot, cameraOnline);
   elements.agentStatus.textContent = agentOnline ? "ONLINE" : "OFFLINE";
-  elements.cameraStatus.textContent = cameraOnline ? "ONLINE" : "OFFLINE";
+  elements.selectedSourceType.textContent = isDrone ? "DRONE" : "CÂMERA";
+  elements.cameraStatus.textContent = isDrone ? (cameraOnline ? "AO VIVO" : "CONECTANDO") : (cameraOnline ? "ONLINE" : "OFFLINE");
   document.querySelectorAll(".camera-item").forEach((button) => {
-    button.querySelector(".mini-dot").className = `mini-dot ${cameraStatuses[button.dataset.cameraId] ? "online" : "offline"}`;
+    const source = streamSources.find((item) => item.id === button.dataset.cameraId);
+    const online = source?.type === "drone" ? (source.id === selectedCameraId && muxPlaybackReady) : cameraStatuses[button.dataset.cameraId];
+    button.querySelector(".mini-dot").className = `mini-dot ${online ? "online" : (source?.type === "drone" ? "stream" : "offline")}`;
   });
-  setControls(Boolean(agentOnline && cameraOnline && authenticated && settings.canPtz));
-  window.NeoVisionTalk.setEnabled(Boolean(agentOnline && cameraOnline && authenticated && settings.canTalk));
+  setControls(Boolean(!isDrone && agentOnline && cameraOnline && authenticated && settings.canPtz));
+  window.NeoVisionTalk.setEnabled(Boolean(!isDrone && agentOnline && cameraOnline && authenticated && settings.canTalk));
 }
 
 function send(payload) {
@@ -399,6 +433,7 @@ elements.volumeControl.addEventListener("input", async () => {
 });
 
 elements.connect.addEventListener("click", connect);
+elements.sourceTabs.forEach((tab) => tab.addEventListener("click", () => setSourceFilter(tab.dataset.sourceFilter)));
 elements.singleView.addEventListener("click", () => setViewMode("single"));
 elements.gridView.addEventListener("click", () => setViewMode("grid"));
 elements.clearGrid.addEventListener("click", clearGrid);
@@ -437,8 +472,12 @@ elements.liveTimeline.addEventListener("input", () => {
   const end = elements.muxPlayer.seekable.end(elements.muxPlayer.seekable.length - 1);
   elements.muxPlayer.currentTime = end - (30 - Number(elements.liveTimeline.value));
 });
+elements.muxPlayer.addEventListener("playing", () => { muxPlaybackReady = true; showStatus(); });
+elements.muxPlayer.addEventListener("waiting", () => { muxPlaybackReady = false; showStatus(); });
+elements.muxPlayer.addEventListener("error", () => { muxPlaybackReady = false; showStatus(); });
 elements.renameCamera.addEventListener("click", async () => {
   const camera = selectedCamera();
+  if (!camera || camera.type === "drone") return;
   const name = window.prompt("Nome personalizado desta câmera:", cameraLabel(camera));
   if (name === null) return;
   try { await window.NeoVisionSettings.saveCameraName(camera.id, name); message("Nome atualizado para todos os usuários."); }
@@ -536,7 +575,7 @@ window.NeoVisionSettings.onChange((value) => {
   elements.adminGridLimit.value = String(normalizeGridLimit(settings.systemGridLimit));
   elements.adminAutoPause.checked = settings.autoPauseHidden;
   elements.adminIdleMinutes.value = String(settings.idleMinutes);
-  elements.renameCamera.hidden = settings.role !== "admin";
+  elements.renameCamera.hidden = settings.role !== "admin" || selectedCamera()?.type === "drone";
   if (!settings.multicameraEnabled && viewMode === "grid") setViewMode("single");
   gridCameraIds = gridCameraIds.filter(canAccessCamera).slice(0, gridLimit());
   if (!canAccessCamera(selectedCameraId)) selectedCameraId = accessibleCameras()[0]?.id || "";

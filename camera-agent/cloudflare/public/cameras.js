@@ -12,3 +12,12 @@ window.NEO_VISION_CAMERAS = [
   { id: "CAM10", name: "Câmera 10", playbackId: "A7lDaiz4OBiRXT80000Q00XuwOCzkmnQkfPErXYrDag8F00" },
   { id: "CAM11", name: "Câmera 11", playbackId: "tRyLTmxi5ULAipeVEIPc3F7BcfClwvcYzL54DZWhWck" }
 ];
+
+window.NEO_VISION_DRONES = [
+  {
+    id: "DRONE01",
+    name: "Drone 01",
+    playbackId: "6yyL2zXWiFUszbR2VJ9KlhGo73CBvm00fohNSz00blGCc",
+    type: "drone"
+  }
+];

@@ -1,5 +1,7 @@
 (() => {
   const ALL_CAMERA_IDS = Array.from({ length: 11 }, (_, index) => `CAM${String(index + 1).padStart(2, "0")}`);
+  const ALWAYS_AVAILABLE_STREAM_IDS = ["DRONE01"];
+  const ALL_GRID_IDS = [...ALL_CAMERA_IDS, ...ALWAYS_AVAILABLE_STREAM_IDS];
   const defaults = {
     role: "viewer",
     canPtz: false,
@@ -57,7 +59,7 @@
         nextState.allowedCameraIds = accessResult.data.map((row) => row.camera_id).filter((id) => ALL_CAMERA_IDS.includes(id));
       }
       if (Array.isArray(viewResult.data?.grid_camera_ids)) {
-        nextState.gridCameraIds = viewResult.data.grid_camera_ids.filter((id) => /^CAM[0-9]{2}$/.test(id));
+        nextState.gridCameraIds = viewResult.data.grid_camera_ids.filter((id) => ALL_GRID_IDS.includes(id));
       }
     } catch (error) {
       console.warn("Preferências remotas indisponíveis; usando padrões seguros.", error);
@@ -133,7 +135,7 @@
     const client = window.NeoVisionAuth.client;
     const userId = window.NeoVisionAuth.session?.user?.id;
     if (!client || !userId) return false;
-    const allowed = new Set(state.role === "admin" ? ALL_CAMERA_IDS : state.allowedCameraIds);
+    const allowed = new Set([...(state.role === "admin" ? ALL_CAMERA_IDS : state.allowedCameraIds), ...ALWAYS_AVAILABLE_STREAM_IDS]);
     const gridCameraIds = [...new Set(cameraIds)].filter((id) => allowed.has(id)).slice(0, 11);
     const { error } = await client.from("viewer_preferences").upsert({
       user_id: userId,
