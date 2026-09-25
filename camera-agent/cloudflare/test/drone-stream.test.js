@@ -20,6 +20,11 @@ test("offers camera and drone source tabs", () => {
   assert.match(app, /const streamSources = \[\.\.\.cameras, \.\.\.drones\]/);
 });
 
+test("does not show the Mux live label below the drone name", () => {
+  assert.doesNotMatch(app, /MUX · AO VIVO/);
+  assert.match(app, /small\.hidden = camera\.type === "drone"/);
+});
+
 test("allows the drone and cameras in the same persisted grid", () => {
   assert.match(app, /streamSources\.find\(\(item\) => item\.id === cameraId\)/);
   assert.match(settings, /ALL_SOURCE_IDS = \[\.\.\.ALL_CAMERA_IDS, "DRONE01"\]/);

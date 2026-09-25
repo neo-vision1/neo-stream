@@ -56,6 +56,7 @@ let lastInteraction = Date.now();
 let pseudoFullscreen = false;
 let sourceFilter = "camera";
 let muxPlaybackReady = false;
+let fullscreenControlsTimer = null;
 
 function cameraLabel(camera) {
   return settings.cameraNames[camera.id] || camera.name || `${t("cameraName")} ${camera.id.replace("CAM", "")}`;
@@ -134,7 +135,7 @@ function renderCameraList() {
     button.dataset.cameraId = camera.id;
     const number = document.createElement("span"); number.className = "camera-number"; number.textContent = camera.type === "drone" ? "DR" : camera.id.replace("CAM", "");
     const text = document.createElement("span"); const strong = document.createElement("strong"); const small = document.createElement("small");
-    strong.textContent = cameraLabel(camera); small.textContent = camera.type === "drone" ? "MUX · AO VIVO" : camera.id; text.append(strong, small);
+    strong.textContent = cameraLabel(camera); small.textContent = camera.id; small.hidden = camera.type === "drone"; text.append(strong, small);
     const dot = document.createElement("i"); dot.className = `mini-dot${camera.type === "drone" ? " stream" : ""}`;
     const check = document.createElement("span"); check.className = `grid-check ${gridCameraIds.includes(camera.id) ? "checked" : ""}`; check.textContent = gridCameraIds.includes(camera.id) ? "✓" : "+";
     button.append(number, text, dot, check);
@@ -462,6 +463,20 @@ elements.clearGrid.addEventListener("click", clearGrid);
 function updateFullscreenButton() {
   const active = Boolean(document.fullscreenElement || document.webkitFullscreenElement || pseudoFullscreen);
   elements.fullscreen.textContent = active ? "✕ Sair da tela cheia" : "⛶ Tela cheia";
+  document.documentElement.toggleAttribute("data-clean-fullscreen", active);
+  if (!active) {
+    document.documentElement.removeAttribute("data-fullscreen-controls");
+    clearTimeout(fullscreenControlsTimer);
+  }
+}
+
+function showFullscreenTimeline() {
+  if (!document.documentElement.hasAttribute("data-clean-fullscreen")) return;
+  document.documentElement.setAttribute("data-fullscreen-controls", "");
+  clearTimeout(fullscreenControlsTimer);
+  fullscreenControlsTimer = setTimeout(() => {
+    document.documentElement.removeAttribute("data-fullscreen-controls");
+  }, 3000);
 }
 
 function setPseudoFullscreen(enabled) {
@@ -486,10 +501,29 @@ elements.fullscreen.addEventListener("click", async () => {
   }
   updateFullscreenButton();
 });
+elements.viewerCard.addEventListener("click", (event) => {
+  if (!document.documentElement.hasAttribute("data-clean-fullscreen")) return;
+  if (event.target === elements.liveTimeline) {
+    showFullscreenTimeline();
+    return;
+  }
+  if (document.documentElement.hasAttribute("data-fullscreen-controls")) {
+    document.documentElement.removeAttribute("data-fullscreen-controls");
+    clearTimeout(fullscreenControlsTimer);
+  } else {
+    showFullscreenTimeline();
+  }
+});
+elements.viewerCard.addEventListener("dblclick", async () => {
+  if (!document.documentElement.hasAttribute("data-clean-fullscreen")) return;
+  if (pseudoFullscreen) setPseudoFullscreen(false);
+  else try { await (document.exitFullscreen?.() || document.webkitExitFullscreen?.()); } catch {}
+});
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 elements.goLive.addEventListener("click", () => goToLive());
 elements.liveTimeline.addEventListener("input", () => {
+  showFullscreenTimeline();
   if (!elements.muxPlayer.seekable?.length) return;
   const end = elements.muxPlayer.seekable.end(elements.muxPlayer.seekable.length - 1);
   elements.muxPlayer.currentTime = end - (30 - Number(elements.liveTimeline.value));

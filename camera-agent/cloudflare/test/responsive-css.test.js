@@ -37,6 +37,15 @@ test("fullscreen has a mobile fallback and an exit control", () => {
   assert.match(css, /height:100dvh/);
 });
 
+test("clean fullscreen shows only the timeline after interaction", () => {
+  assert.match(app, /data-clean-fullscreen/);
+  assert.match(app, /function showFullscreenTimeline\(\)/);
+  assert.match(app, /setTimeout\(\(\) => \{/);
+  assert.match(css, /html\[data-clean-fullscreen\] \.viewer-head/);
+  assert.match(css, /html\[data-clean-fullscreen\]\[data-fullscreen-controls\] \.live-controls/);
+  assert.match(css, /html\[data-clean-fullscreen\] \.live-controls span/);
+});
+
 test("camera access is filtered before rendering", () => {
   assert.match(app, /function accessibleCameras\(\)/);
   assert.match(app, /gridCameraIds = gridCameraIds\.filter\(canAccessCamera\)/);
