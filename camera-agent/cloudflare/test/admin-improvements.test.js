@@ -28,6 +28,7 @@ test("allows an admin to clear alert history", () => {
 
 test("offers source-specific Mux and Agent status email tests", () => {
   assert.match(html, /id="testMuxSource"/);
+  assert.ok(html.indexOf('src="/cameras.js"') < html.indexOf('src="/alerts.js"'), "camera sources must load before the alert selector");
   assert.match(html, /id="testMuxStatus"/);
   assert.match(html, /id="testAgentStatus"/);
   assert.match(alerts, /request\(action, \{ method: "POST"/);

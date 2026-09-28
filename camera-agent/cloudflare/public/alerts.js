@@ -82,7 +82,7 @@
       elements.recipient.value = config.recipient || "";
       elements.recovery.checked = config.recoveryEnabled !== false;
       elements.agent.checked = config.agentAlertsEnabled !== false;
-      elements.message.textContent = data.emailConfigured ? "Envio por e-mail configurado no Brevo." : "Monitoramento disponível; falta salvar BREVO_API_KEY no Worker de teste.";
+      elements.message.textContent = data.emailConfigured ? "Envio por e-mail configurado no Brevo." : "Monitoramento disponível; falta configurar BREVO_API_KEY neste Worker.";
       alertHistory = Array.isArray(data.history) ? data.history : [];
       renderHistory();
     } catch (error) { elements.message.textContent = error.message; }
@@ -99,7 +99,7 @@
         recoveryEnabled: elements.recovery.checked,
         agentAlertsEnabled: elements.agent.checked
       }) });
-      elements.message.textContent = data.emailConfigured ? "Configurações salvas e envio pelo Brevo habilitado." : "Configurações salvas. Falta salvar BREVO_API_KEY no Worker de teste.";
+      elements.message.textContent = data.emailConfigured ? "Configurações salvas e envio pelo Brevo habilitado." : "Configurações salvas. Falta configurar BREVO_API_KEY neste Worker.";
     } catch (error) { elements.message.textContent = error.message; }
   });
 
