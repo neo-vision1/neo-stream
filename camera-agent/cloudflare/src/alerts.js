@@ -69,6 +69,8 @@ export function alertText(event, siteId) {
     agent_recovered: "Agent voltou a comunicar",
     camera_offline: `${event.cameraId || "Câmera"} sem sinal`,
     camera_recovered: `${event.cameraId || "Câmera"} voltou a transmitir`,
+    mux_stream_active: `${event.sourceId || "Transmissão"} começou a transmitir vídeo`,
+    mux_stream_idle: `${event.sourceId || "Transmissão"} parou de transmitir vídeo`,
     test: "Alerta de teste"
   };
   const title = labels[event.kind] || "Alerta Neo Vision";

@@ -12,7 +12,8 @@
   let alertHistory = [];
   const labels = {
     camera_offline: "Câmera sem sinal", camera_recovered: "Câmera recuperada",
-    agent_offline: "Agent sem comunicação", agent_recovered: "Agent recuperado", test: "Alerta de teste"
+    agent_offline: "Agent sem comunicação", agent_recovered: "Agent recuperado",
+    mux_stream_active: "Vídeo começou a transmitir", mux_stream_idle: "Vídeo parou de transmitir", test: "Alerta de teste"
   };
 
   async function request(action = "", options = {}) {
@@ -49,7 +50,8 @@
     }
     for (const event of history) {
       const row = document.createElement("div"); row.className = "alert-event";
-      const title = document.createElement("strong"); title.textContent = event.cameraId ? `${event.cameraId} · ${labels[event.kind] || event.kind}` : (labels[event.kind] || event.kind);
+      const sourceId = event.cameraId || event.sourceId;
+      const title = document.createElement("strong"); title.textContent = sourceId ? `${sourceId} · ${labels[event.kind] || event.kind}` : (labels[event.kind] || event.kind);
       const detail = document.createElement("small");
       const delivery = event.delivery === "sent" ? "e-mail enviado" : event.delivery === "failed" ? "falha no e-mail" : "somente registrado";
       detail.textContent = `${new Date(event.occurredAt).toLocaleString("pt-BR")} · ${delivery}`;

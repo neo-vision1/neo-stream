@@ -3,6 +3,7 @@ import { heartbeatCameras, heartbeatCapabilities, parseMessage, validIdentifier,
 import { getSupabasePermissions, supabaseConfigured, verifySupabaseUser } from "./auth.js";
 import { alertText, DEFAULT_ALERT_CONFIG, evaluateAlerts, normalizeAlertConfig } from "./alerts.js";
 import { brevoConfigured, sendBrevoEmail } from "./email.js";
+import { muxSourceEvent, verifyMuxSignature } from "./mux.js";
 
 const HEARTBEAT_MAX_AGE_MS = 30_000;
 
@@ -50,6 +51,21 @@ export default {
       return json({ supabaseUrl: env.SUPABASE_URL, supabaseAnonKey: env.SUPABASE_ANON_KEY }, 200, { "cache-control": "no-store" });
     }
 
+    if (url.pathname === "/webhooks/mux") {
+      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      if (!env.MUX_WEBHOOK_SECRET) return json({ error: "Mux webhook not configured" }, 503);
+      const body = await request.text();
+      const valid = await verifyMuxSignature({ body, header: request.headers.get("mux-signature"), secret: env.MUX_WEBHOOK_SECRET });
+      if (!valid) return json({ error: "Invalid Mux signature" }, 401);
+      let payload;
+      try { payload = JSON.parse(body); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const siteId = env.MUX_WEBHOOK_SITE_ID || "OBRA_001";
+      const target = new URL(`/mux/${siteId}`, "https://durable.internal");
+      return env.CAMERA_SITE.getByName(siteId).fetch(new Request(target, {
+        method: "POST", headers: { "content-type": "application/json", "x-neo-mux": "1" }, body: JSON.stringify(payload)
+      }));
+    }
+
     const alertMatch = url.pathname.match(/^\/api\/alerts\/([A-Za-z0-9_-]{1,64})(\/(?:test|history))?$/);
     if (alertMatch) {
       const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "";
@@ -92,6 +108,7 @@ export class CameraSite extends DurableObject {
     const url = new URL(request.url);
     const parts = url.pathname.split("/").filter(Boolean);
     if (parts[0] === "alerts") return this.alertApi(request, parts[1], parts[2]);
+    if (parts[0] === "mux") return this.muxWebhook(request, parts[1]);
     const siteId = parts.at(-1);
     if (!validIdentifier(siteId)) return json({ error: "Invalid site" }, 400);
 
@@ -153,6 +170,26 @@ export class CameraSite extends DurableObject {
     await this.ctx.storage.put("alertHistory", [saved, ...history].slice(0, 100));
     this.broadcast("operator", { type: "alert_event", event: saved });
     return saved;
+  }
+
+  async muxWebhook(request, siteId) {
+    if (request.headers.get("x-neo-mux") !== "1" || !validIdentifier(siteId)) return json({ error: "Forbidden" }, 403);
+    let payload;
+    try { payload = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+    const event = muxSourceEvent(payload);
+    if (!event) return json({ ok: true, ignored: true });
+    const recentIds = (await this.ctx.storage.get("muxEventIds")) || [];
+    if (event.muxEventId && recentIds.includes(event.muxEventId)) return json({ ok: true, duplicate: true });
+    if (event.muxEventId) await this.ctx.storage.put("muxEventIds", [event.muxEventId, ...recentIds].slice(0, 100));
+    const states = (await this.ctx.storage.get("muxStreamStates")) || {};
+    const nextStatus = event.kind === "mux_stream_active" ? "active" : "idle";
+    if (states[event.sourceId] === nextStatus) return json({ ok: true, unchanged: true });
+    states[event.sourceId] = nextStatus;
+    await this.ctx.storage.put("muxStreamStates", states);
+    const config = normalizeAlertConfig((await this.ctx.storage.get("alertConfig")) || DEFAULT_ALERT_CONFIG);
+    if (!config.enabled) return json({ ok: true, alertsEnabled: false });
+    const saved = await this.deliverAlert(event, siteId, config);
+    return json({ ok: true, event: saved });
   }
 
   async processAlerts(siteId) {
