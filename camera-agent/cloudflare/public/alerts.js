@@ -3,7 +3,9 @@
     form: document.querySelector("#alertSettings"), enabled: document.querySelector("#alertsEnabled"),
     minutes: document.querySelector("#alertOfflineMinutes"), recipient: document.querySelector("#alertRecipient"),
     recovery: document.querySelector("#alertRecovery"), agent: document.querySelector("#alertAgent"),
-    test: document.querySelector("#testAlert"), refresh: document.querySelector("#refreshAlerts"),
+    test: document.querySelector("#testAlert"), testMux: document.querySelector("#testMuxStatus"),
+    testAgent: document.querySelector("#testAgentStatus"), testSource: document.querySelector("#testMuxSource"),
+    refresh: document.querySelector("#refreshAlerts"),
     message: document.querySelector("#alertMessage"), history: document.querySelector("#alertHistory"),
     filterDate: document.querySelector("#alertFilterDate"), filterStart: document.querySelector("#alertFilterStart"),
     filterEnd: document.querySelector("#alertFilterEnd"), clearFilters: document.querySelector("#clearAlertFilters"),
@@ -13,8 +15,19 @@
   const labels = {
     camera_offline: "Câmera sem sinal", camera_recovered: "Câmera recuperada",
     agent_offline: "Agent sem comunicação", agent_recovered: "Agent recuperado",
-    mux_stream_active: "Vídeo começou a transmitir", mux_stream_idle: "Vídeo parou de transmitir", test: "Alerta de teste"
+    mux_stream_active: "Vídeo começou a transmitir", mux_stream_idle: "Vídeo parou de transmitir",
+    mux_status_test: "Teste do estado do vídeo", agent_status_test: "Teste do estado do Agent", test: "Alerta de teste"
   };
+
+  const sources = [
+    ...(window.NEO_VISION_CAMERAS || []), ...(window.NEO_VISION_DRONES || [])
+  ];
+  elements.testSource.replaceChildren(...sources.map((source) => {
+    const option = document.createElement("option");
+    option.value = source.id;
+    option.textContent = `${source.id} — ${source.name}`;
+    return option;
+  }));
 
   async function request(action = "", options = {}) {
     const token = await window.NeoVisionAuth.getAccessToken();
@@ -99,6 +112,21 @@
     } catch (error) { elements.message.textContent = error.message; }
     finally { elements.test.disabled = false; }
   });
+  async function runStatusTest(button, action, payload) {
+    button.disabled = true;
+    elements.message.textContent = "Consultando o estado observado e enviando e-mail…";
+    try {
+      const data = await request(action, { method: "POST", body: JSON.stringify(payload) });
+      alertHistory = [data.event, ...alertHistory].slice(0, 100);
+      renderHistory();
+      const state = data.event?.observedStatus || "unknown";
+      const delivery = data.event?.delivery === "sent" ? "E-mail enviado" : data.event?.delivery === "failed" ? "Falha ao enviar e-mail" : "E-mail não configurado";
+      elements.message.textContent = `${delivery}. Estado: ${state === "active" || state === "online" ? "ativo" : state === "idle" || state === "offline" ? "inativo" : "desconhecido"}.`;
+    } catch (error) { elements.message.textContent = error.message; }
+    finally { button.disabled = false; }
+  }
+  elements.testMux.addEventListener("click", () => runStatusTest(elements.testMux, "/test-mux", { sourceId: elements.testSource.value }));
+  elements.testAgent.addEventListener("click", () => runStatusTest(elements.testAgent, "/test-agent", {}));
   elements.refresh.addEventListener("click", load);
   [elements.filterDate, elements.filterStart, elements.filterEnd].forEach((input) => input.addEventListener("input", renderHistory));
   elements.clearFilters.addEventListener("click", () => {

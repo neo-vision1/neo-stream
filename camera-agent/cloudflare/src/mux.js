@@ -13,6 +13,8 @@ export const MUX_LIVE_STREAM_SOURCES = Object.freeze({
   "XJ8YHVVQ7FDJnpwiol01vwSX4OfCsizHYRjR9fZXOJhk": "DRONE01"
 });
 
+export const MUX_SOURCE_IDS = Object.freeze(Object.values(MUX_LIVE_STREAM_SOURCES));
+
 const encoder = new TextEncoder();
 
 function parseSignature(header) {

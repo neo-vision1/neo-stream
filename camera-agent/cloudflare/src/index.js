@@ -3,7 +3,7 @@ import { heartbeatCameras, heartbeatCapabilities, parseMessage, validIdentifier,
 import { getSupabasePermissions, supabaseConfigured, verifySupabaseUser } from "./auth.js";
 import { alertText, DEFAULT_ALERT_CONFIG, evaluateAlerts, normalizeAlertConfig } from "./alerts.js";
 import { brevoConfigured, sendBrevoEmail } from "./email.js";
-import { muxSourceEvent, verifyMuxSignature } from "./mux.js";
+import { MUX_SOURCE_IDS, muxSourceEvent, verifyMuxSignature } from "./mux.js";
 
 const HEARTBEAT_MAX_AGE_MS = 30_000;
 
@@ -66,7 +66,7 @@ export default {
       }));
     }
 
-    const alertMatch = url.pathname.match(/^\/api\/alerts\/([A-Za-z0-9_-]{1,64})(\/(?:test|history))?$/);
+    const alertMatch = url.pathname.match(/^\/api\/alerts\/([A-Za-z0-9_-]{1,64})(\/(?:test|history|test-mux|test-agent))?$/);
     if (alertMatch) {
       const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "";
       const authEnv = await authEnvironment(env);
@@ -141,6 +141,30 @@ export class CameraSite extends DurableObject {
       const saved = await this.deliverAlert(event, siteId, config);
       return json({ ok: true, event: saved, emailConfigured: brevoConfigured(this.env) });
     }
+    if (request.method === "POST" && action === "test-mux") {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      if (!MUX_SOURCE_IDS.includes(body?.sourceId)) return json({ error: "Invalid source" }, 400);
+      const states = (await this.ctx.storage.get("muxStreamStates")) || {};
+      const observed = states[body.sourceId];
+      const observedStatus = typeof observed === "string" ? observed : observed?.status;
+      const event = {
+        kind: "mux_status_test", sourceId: body.sourceId, occurredAt: Date.now(),
+        observedStatus: observedStatus === "active" || observedStatus === "idle" ? observedStatus : "unknown",
+        observedAt: typeof observed === "object" ? observed?.observedAt : null
+      };
+      const saved = await this.deliverAlert(event, siteId, config);
+      return json({ ok: true, event: saved, emailConfigured: brevoConfigured(this.env) });
+    }
+    if (request.method === "POST" && action === "test-agent") {
+      const status = await this.currentStatus(siteId);
+      const event = {
+        kind: "agent_status_test", occurredAt: Date.now(),
+        observedStatus: status.agentOnline ? "online" : "offline", lastHeartbeat: status.lastHeartbeat
+      };
+      const saved = await this.deliverAlert(event, siteId, config);
+      return json({ ok: true, event: saved, emailConfigured: brevoConfigured(this.env) });
+    }
     if (request.method === "DELETE" && action === "history") {
       await this.ctx.storage.delete("alertHistory");
       return json({ ok: true, history: [] });
@@ -183,9 +207,10 @@ export class CameraSite extends DurableObject {
     if (event.muxEventId) await this.ctx.storage.put("muxEventIds", [event.muxEventId, ...recentIds].slice(0, 100));
     const states = (await this.ctx.storage.get("muxStreamStates")) || {};
     const nextStatus = event.kind === "mux_stream_active" ? "active" : "idle";
-    if (states[event.sourceId] === nextStatus) return json({ ok: true, unchanged: true });
-    states[event.sourceId] = nextStatus;
+    const previousStatus = typeof states[event.sourceId] === "string" ? states[event.sourceId] : states[event.sourceId]?.status;
+    states[event.sourceId] = { status: nextStatus, observedAt: event.occurredAt };
     await this.ctx.storage.put("muxStreamStates", states);
+    if (previousStatus === nextStatus) return json({ ok: true, unchanged: true });
     const config = normalizeAlertConfig((await this.ctx.storage.get("alertConfig")) || DEFAULT_ALERT_CONFIG);
     if (!config.enabled) return json({ ok: true, alertsEnabled: false });
     const saved = await this.deliverAlert(event, siteId, config);

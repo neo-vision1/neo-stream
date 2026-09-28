@@ -71,10 +71,22 @@ export function alertText(event, siteId) {
     camera_recovered: `${event.cameraId || "Câmera"} voltou a transmitir`,
     mux_stream_active: `${event.sourceId || "Transmissão"} começou a transmitir vídeo`,
     mux_stream_idle: `${event.sourceId || "Transmissão"} parou de transmitir vídeo`,
+    mux_status_test: `Teste do vídeo ${event.sourceId || "Transmissão"}`,
+    agent_status_test: "Teste do Agent",
     test: "Alerta de teste"
   };
   const title = labels[event.kind] || "Alerta Neo Vision";
   const lines = [title, `Local: ${siteId}`, `Horário: ${new Date(event.occurredAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`];
   if (event.offlineSince) lines.push(`Início da indisponibilidade: ${new Date(event.offlineSince).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`);
+  if (event.kind === "mux_status_test") {
+    const state = { active: "ATIVO no último evento recebido do Mux", idle: "PARADO no último evento recebido do Mux", unknown: "DESCONHECIDO — nenhum evento recebido do Mux" };
+    lines.push(`Estado: ${state[event.observedStatus] || state.unknown}`);
+    if (event.observedAt) lines.push(`Último evento Mux: ${new Date(event.observedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`);
+    lines.push("Este teste consulta o último evento armazenado; não força uma nova verificação no Mux.");
+  }
+  if (event.kind === "agent_status_test") {
+    lines.push(`Estado: ${event.observedStatus === "online" ? "ONLINE — conexão e heartbeat recentes" : "OFFLINE — sem conexão ou heartbeat recente"}`);
+    if (event.lastHeartbeat) lines.push(`Último heartbeat: ${new Date(event.lastHeartbeat).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`);
+  }
   return { subject: `[Neo Vision] ${title} — ${siteId}`, text: lines.join("\n") };
 }

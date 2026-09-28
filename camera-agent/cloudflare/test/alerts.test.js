@@ -1,6 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { evaluateAlerts, normalizeAlertConfig } from "../src/alerts.js";
+import { alertText, evaluateAlerts, normalizeAlertConfig } from "../src/alerts.js";
+
+test("status tests label observed Mux state and current Agent state honestly", () => {
+  const mux = alertText({ kind: "mux_status_test", sourceId: "CAM01", observedStatus: "unknown", occurredAt: 1 }, "OBRA_001");
+  assert.match(mux.text, /DESCONHECIDO/);
+  assert.match(mux.text, /último evento armazenado/);
+  const agent = alertText({ kind: "agent_status_test", observedStatus: "offline", occurredAt: 1 }, "OBRA_001");
+  assert.match(agent.text, /OFFLINE/);
+});
 
 test("normalizes alert configuration safely", () => {
   assert.deepEqual(normalizeAlertConfig({ enabled: true, offlineMinutes: 2, recipient: " admin@example.com " }), {

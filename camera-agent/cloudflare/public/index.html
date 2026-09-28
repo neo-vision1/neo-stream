@@ -258,6 +258,12 @@
 <button type="submit">Salvar alertas</button>
 <button id="testAlert" class="secondary-button" type="button">Enviar teste</button>
 </div>
+<div class="alert-real-tests">
+<label>Fonte de vídeo para testar<select id="testMuxSource"></select></label>
+<button id="testMuxStatus" class="secondary-button" type="button">Enviar estado da câmera</button>
+<button id="testAgentStatus" class="secondary-button" type="button">Enviar estado do Agent</button>
+</div>
+<p class="muted alert-test-note">O teste da câmera informa o último estado recebido do Mux; se não houver evento, indica estado desconhecido. O teste do Agent verifica a conexão atual.</p>
 <p id="alertMessage" class="muted">O envio depende da configuração do e-mail na Cloudflare.</p>
 </form>
 <div>

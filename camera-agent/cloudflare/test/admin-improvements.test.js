@@ -26,6 +26,17 @@ test("allows an admin to clear alert history", () => {
   assert.match(worker, /storage\.delete\("alertHistory"\)/);
 });
 
+test("offers source-specific Mux and Agent status email tests", () => {
+  assert.match(html, /id="testMuxSource"/);
+  assert.match(html, /id="testMuxStatus"/);
+  assert.match(html, /id="testAgentStatus"/);
+  assert.match(alerts, /request\(action, \{ method: "POST"/);
+  assert.match(worker, /action === "test-mux"/);
+  assert.match(worker, /action === "test-agent"/);
+  assert.match(worker, /MUX_SOURCE_IDS\.includes\(body\?\.sourceId\)/);
+  assert.match(worker, /const status = await this\.currentStatus\(siteId\)/);
+});
+
 test("migrates drone names and permissions without removing existing access", () => {
   assert.match(schema, /camera_id = 'DRONE01'/);
   assert.match(schema, /select id, 'DRONE01' from auth\.users/);
